@@ -599,7 +599,7 @@ Decisions made by the owner:
 
 **Deploy (Azure CLI; on Windows call `az.cmd`):** `pnpm build:node`, `pnpm package:azure` (writes a ~0.5 MB zip to the temp folder), then `az webapp deploy -g rg-advancio-marketing -n advancio-booth --src-path <zip> --type zip --clean true`. The zip holds the built app plus a minimal `package.json`; Azure installs `next`, `react` and `react-dom` (`SCM_DO_BUILD_DURING_DEPLOYMENT=true`). Do not zip the standalone `node_modules`: Windows links expand it to 70+ MB and the deploy stalls, leaving a Kudu lock. The deploy tool may report "Starting the site" for minutes; check `/booth` directly. Startup command `node server.js`, `PORT=8080`.
 
-**Live URL until the Cloudflare Worker is added:** `https://advancio-booth.azurewebsites.net/booth`.
+**Live:** `https://mk.advancio.io/booth` (direct origin: `https://advancio-booth.azurewebsites.net/booth`). The router Worker `mk-router` was deployed with `npx wrangler deploy --config wrangler.jsonc` from `infra/cloudflare` (Cloudflare account `itadmin@advancio.com`), using a Worker Custom Domain for `mk.advancio.io` so Cloudflare manages DNS and the certificate. To add an app: add its line to `ROUTES` in `infra/cloudflare/mk-router.js` and redeploy. Pass `--config` explicitly, because the app build leaves a `.wrangler/deploy` redirect that confuses Wrangler.
 
 Azure application settings: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (secret, server-only), `APP_BASE_URL`. See `.env.example`. On Windows PowerShell, call `npx.cmd` / `pnpm.cmd` if script execution is disabled.
 
