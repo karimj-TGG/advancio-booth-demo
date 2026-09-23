@@ -20,15 +20,15 @@ The live experience covers four paths:
 - QR code generation through QRCode.js loaded from a CDN
 - Web Share and clipboard fallbacks for taking the summary away
 
-The current production architecture does **not** use Supabase or Resend. Those are documented as the intended external-hosting continuation path in [docs/PROJECT_HANDOFF.md](docs/PROJECT_HANDOFF.md).
+**Production (as of 2026-09-23)** runs at `https://mk.advancio.io/booth`: Azure App Service (shared plan) behind a Cloudflare Worker router, with sessions stored in the shared Advancio Marketing Supabase project (`booth` schema). Resend email and contact capture are not built yet. The original Cloudflare Sites/D1 build is kept for reference only. See [docs/MARKETING_PLATFORM.md](docs/MARKETING_PLATFORM.md) for hosting and how to add more marketing apps, and [docs/PROJECT_HANDOFF.md](docs/PROJECT_HANDOFF.md) section 14a for decisions.
 
 ## Start here when continuing development
 
 1. Read [CLAUDE.md](CLAUDE.md).
 2. Read [docs/PROJECT_HANDOFF.md](docs/PROJECT_HANDOFF.md).
 3. Review `public/experience.js`, which contains the journey content, state machine, rendering, persistence calls, sharing, voice input, and idle reset.
-4. Review `app/api/session/route.ts` and `db/schema.ts` before changing persistence.
-5. Decide whether the task stays on the current Sites/D1 architecture or intentionally migrates to Supabase/Resend. Do not run both persistence systems without a documented transition plan.
+4. Review `app/api/session/route.ts`, `lib/supabase-server.ts` and `supabase/migrations/` before changing persistence. (`db/schema.ts` and `drizzle/` belong to the retired D1 track.)
+5. Read [docs/MARKETING_PLATFORM.md](docs/MARKETING_PLATFORM.md) before touching hosting, DNS, Cloudflare, Azure or Supabase. Do not write sessions to D1 and Supabase at the same time.
 
 ## Local setup
 

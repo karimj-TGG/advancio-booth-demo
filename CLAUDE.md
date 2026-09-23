@@ -5,7 +5,7 @@ You are continuing the Advancio Bottleneck Experience. Treat this repository as 
 ## Read before editing
 
 1. `README.md`
-2. `docs/PROJECT_HANDOFF.md`
+2. `docs/PROJECT_HANDOFF.md` and `docs/MARKETING_PLATFORM.md`
 3. The specific source files named in the handoff for the task you are implementing
 
 The handoff distinguishes **current implementation** from **approved future direction**. Preserve that distinction in code and documentation.
@@ -34,13 +34,13 @@ The four paths are Distribution, Underwriting, Claims, and Customer Experience.
 
 ## Architecture decision rule
 
-The deployed Sites version currently uses Cloudflare D1. The owner intends to use Supabase for the database and Resend for email when the project is moved to an external/full application deployment.
+**Current production (since 2026-09-23):** Azure App Service `advancio-booth` on the shared plan `asp-advancio-marketing`, served at `https://mk.advancio.io/booth` through the Cloudflare Worker `mk-router`, with sessions in the shared Supabase project (`booth` schema). Read `docs/MARKETING_PLATFORM.md` before changing hosting, DNS, Cloudflare, Azure or Supabase; it has the rules and the checklist for adding new marketing apps (shared plan, one path and one Supabase schema per app). The old Cloudflare Sites/D1 track is retained for reference only. Resend email is still planned, not built.
 
 Before changing persistence or email:
 
 1. State which deployment track the task targets.
-2. For the current Sites track, keep D1 and the existing `/api/session` contract.
-3. For the external track, migrate deliberately to Supabase and Resend using the target design in `docs/PROJECT_HANDOFF.md`.
+2. Keep the existing `/api/session` contract. The D1/Sites track is retired; do not write to it.
+3. Change Supabase only through new files in `supabase/migrations/`, touching only your own schema, and add Resend using the design in `docs/PROJECT_HANDOFF.md`.
 4. Do not write the same session to both databases indefinitely. A short, documented migration or dual-write window is acceptable only when requested.
 5. Never expose Supabase service-role keys or the Resend API key to browser code.
 
@@ -73,7 +73,7 @@ Unless the owner gives a different priority, work in this order:
 
 1. Add the approved product screenshots.
 2. Confirm the final booking URLs and booth CTA behavior.
-3. Decide the deployment track and implement either D1 hardening or the Supabase migration.
+3. Harden the Supabase-backed API (rate limiting, retention/archive) now that the Azure and Supabase track is live.
 4. Add optional contact capture and Resend delivery only after the data/consent requirements are approved.
 5. Add focused end-to-end tests for the journey and session restoration.
 6. Refactor the client engine only after behavior is protected by tests.
