@@ -72,6 +72,8 @@ Read the key from the local `.env.local` in a script; never paste it into chat o
 
 ### 4. Deploy
 
+Automatic: push to `main` (see CI/CD under Known limits). Manual fallback:
+
 ```bash
 pnpm build:node        # next build with NEXT_PUBLIC_BASE_PATH, then copies static files
 pnpm package:azure     # ~0.5 MB zip in the temp folder
@@ -97,6 +99,6 @@ az.cmd webapp deploy -g rg-advancio-marketing -n advancio-<app> --src-path <temp
 ## Known limits and follow-ups
 
 - `mk.advancio.io/` (the root) returns 404. Add a landing page route if wanted.
-- No CI/CD yet. Deploys are manual with the commands above. Azure Deployment Center can generate a GitHub Actions workflow.
+- **CI/CD:** `.github/workflows/deploy-azure.yml` deploys `main` to Azure on every push (install, `pnpm build:node`, `pnpm package:azure`, `azure/webapps-deploy`), authenticated with the GitHub secret `AZURE_WEBAPP_PUBLISH_PROFILE` (a publish profile for `advancio-booth`). For a new app, copy the workflow, change the app name, and add that app's own publish-profile secret. The manual commands above remain the fallback. Pushing to `main` therefore deploys to production.
 - No rate limiting or abuse protection on `/api/session`. Cloudflare rate limiting rules on the domain are the natural place.
 - The Sites/Cloudflare D1 build (`pnpm build`, `db/`, `drizzle/`, `.openai/hosting.json`) is retained for the old track only and is not written to by the app.
