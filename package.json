@@ -13,7 +13,8 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "build:node": "node scripts/build-node.mjs",
-    "start:node": "node .next/standalone/server.js"
+    "start:node": "node .next/standalone/server.js",
+    "package:azure": "node scripts/package-azure.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

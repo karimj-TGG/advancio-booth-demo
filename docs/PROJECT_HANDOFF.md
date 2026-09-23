@@ -595,6 +595,12 @@ Decisions made by the owner:
 - **Cutover:** D1 is no longer written by the app on this track. No D1 data was migrated (fresh start). `db/`, `drizzle/` and the D1 binding are retained only for the Sites track and must not be dual-written.
 - **Schema changes:** add new migration files under `supabase/migrations` and apply with `npx supabase db push` (linked project). Only change the `booth` schema.
 
+**Plan rule:** every future marketing app is a new Web App on the existing plan `asp-advancio-marketing` (Linux, West US). Do not create new plans; scale the shared plan up if capacity runs out.
+
+**Deploy (Azure CLI; on Windows call `az.cmd`):** `pnpm build:node`, `pnpm package:azure` (writes a ~0.5 MB zip to the temp folder), then `az webapp deploy -g rg-advancio-marketing -n advancio-booth --src-path <zip> --type zip --clean true`. The zip holds the built app plus a minimal `package.json`; Azure installs `next`, `react` and `react-dom` (`SCM_DO_BUILD_DURING_DEPLOYMENT=true`). Do not zip the standalone `node_modules`: Windows links expand it to 70+ MB and the deploy stalls, leaving a Kudu lock. The deploy tool may report "Starting the site" for minutes; check `/booth` directly. Startup command `node server.js`, `PORT=8080`.
+
+**Live URL until the Cloudflare Worker is added:** `https://advancio-booth.azurewebsites.net/booth`.
+
 Azure application settings: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (secret, server-only), `APP_BASE_URL`. See `.env.example`. On Windows PowerShell, call `npx.cmd` / `pnpm.cmd` if script execution is disabled.
 
 ## 15. Copy-and-paste kickoff prompt for Claude Code
