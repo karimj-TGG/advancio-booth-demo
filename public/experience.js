@@ -151,12 +151,31 @@ const state = {
   step: 0,
   answers: [],
   draftAnswer: null,
+  voiceOpen: false,
   slide: 0,
   viewedSlides: [],
   shared: false,
   saveStatus: "idle",
   sessionId: getSessionId()
 };
+
+// The booth display is a large TV: lay everything out on a fixed 1920x1080 stage and scale it to the window so nothing scrolls.
+const STAGE_W = 1920;
+const STAGE_H = 1080;
+function fitStage() {
+  const root = document.documentElement;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const on = w > 1120 && w > h;
+  root.classList.toggle("is-stage", on);
+  if (!on) return;
+  const scale = Math.min(w / STAGE_W, h / STAGE_H);
+  root.style.setProperty("--stage-scale", scale);
+  root.style.setProperty("--stage-x", `${(w - STAGE_W * scale) / 2}px`);
+  root.style.setProperty("--stage-y", `${(h - STAGE_H * scale) / 2}px`);
+}
+fitStage();
+window.addEventListener("resize", fitStage);
 
 let idleTimer;
 let idleCountdown;
@@ -190,6 +209,7 @@ function render() {
   if (state.view === "future") renderFuture();
   if (state.view === "solution") renderSolution();
   if (state.view === "summary") renderSummary();
+  renderVoiceModal();
   app.focus({ preventScroll: true });
   resetIdleTimer();
 }
@@ -244,20 +264,10 @@ function renderQuiz() {
           `).join("")}
           <button class="answer-button answer-button--other ${isOther ? "is-selected" : ""}" type="button" data-action="choose-other" aria-pressed="${Boolean(isOther)}">
             <span class="answer-button__index">04</span>
-            <span class="answer-button__text">Other — tell us in your own words</span>
+            <span class="answer-button__text">${isOther && state.draftAnswer.answer.trim() ? `Other — ${escapeHtml(state.draftAnswer.answer.trim())}` : "Other — tell us in your own words"}</span>
             <span class="answer-button__mic" aria-hidden="true">●</span>
           </button>
         </div>
-        ${isOther ? `
-          <div class="voice-answer">
-            <div class="voice-answer__head">
-              <div><strong>Speak or type your answer</strong><span>Only the final transcript is saved—not your audio.</span></div>
-              <button class="voice-button" type="button" data-action="speak" aria-label="Start voice input"><span aria-hidden="true">●</span> Speak answer</button>
-            </div>
-            <label for="otherAnswer">Your answer</label>
-            <textarea id="otherAnswer" rows="3" placeholder="Tap “Speak answer” or type here…">${escapeHtml(state.draftAnswer?.answer || "")}</textarea>
-            <div class="voice-status" id="voiceStatus" aria-live="polite">Ready when you are.</div>
-          </div>` : ""}
         <div class="quiz-actions">
           <span class="save-indicator ${state.saveStatus === "error" ? "has-error" : ""}">${state.saveStatus === "saving" ? "Saving…" : state.saveStatus === "saved" ? "Answer saved" : state.saveStatus === "error" ? "Save paused—tap continue to retry" : "Your answers are saved as you go"}</span>
           <button class="primary-button" type="button" data-action="continue-answer" ${state.draftAnswer ? "" : "disabled"}>Continue <span aria-hidden="true">→</span></button>
@@ -276,6 +286,38 @@ function renderQuiz() {
     </section>`;
 }
 
+function renderVoiceModal() {
+  const modal = document.getElementById("voiceModal");
+  if (!modal) return;
+  const open = state.view === "quiz" && state.voiceOpen && state.draftAnswer?.isOther;
+  modal.hidden = !open;
+  if (!open) { modal.innerHTML = ""; return; }
+  modal.innerHTML = `
+    <div class="voice-modal__backdrop" data-action="close-voice"></div>
+    <div class="voice-modal__card" role="dialog" aria-modal="true" aria-labelledby="voiceTitle">
+      <button class="icon-button voice-modal__close" type="button" data-action="close-voice" aria-label="Close and go back to the answers">×</button>
+      <span class="eyebrow">Your own words</span>
+      <h2 id="voiceTitle">Speak or type your answer</h2>
+      <p class="voice-modal__note">Only the final transcript is saved—not your audio.</p>
+      <button class="voice-button voice-button--large" type="button" data-action="speak" aria-label="Start voice input"><span aria-hidden="true"></span> Speak answer</button>
+      <label for="otherAnswer">Your answer</label>
+      <textarea id="otherAnswer" rows="4" maxlength="400" placeholder="Tap “Speak answer” or type here…">${escapeHtml(state.draftAnswer.answer || "")}</textarea>
+      <div class="voice-status" id="voiceStatus" aria-live="polite">Ready when you are.</div>
+      <div class="voice-modal__actions">
+        <button class="secondary-button" type="button" data-action="close-voice">Cancel</button>
+        <button class="primary-button" type="button" data-action="continue-answer">Continue <span aria-hidden="true">→</span></button>
+      </div>
+    </div>`;
+  document.getElementById("otherAnswer")?.focus();
+}
+
+function closeVoice() {
+  recognition?.abort?.();
+  state.voiceOpen = false;
+  if (state.draftAnswer?.isOther && !state.draftAnswer.answer.trim()) state.draftAnswer = null;
+  render();
+}
+
 function renderFuture() {
   const data = paths[state.path];
   const selected = state.answers.map(answer => answer.answer);
@@ -283,7 +325,7 @@ function renderFuture() {
     <section class="screen future-screen" aria-labelledby="futureTitle">
       <div class="future-copy">
         <span class="eyebrow">The future state</span>
-        <h1 id="futureTitle">Imagine if <em>${data.future}</em>.</h1>
+        <h1 id="futureTitle" style="--future-size:${data.future.length <= 66 ? 5 : data.future.length <= 85 ? 4.4 : 3.8}rem">Imagine if <em>${data.future}</em>.</h1>
         <p>Your answers point to a connected outcome—not another isolated tool.</p>
         <div class="insight-stack">
           ${selected.map((answer, index) => `<div class="insight-row"><i>✓</i><span>${escapeHtml(answer)}</span></div>`).join("")}
@@ -453,6 +495,7 @@ function choosePath(path) {
 function chooseAnswer(answer) {
   const index = Number(answer);
   const question = paths[state.path].questions[state.step];
+  state.voiceOpen = false;
   state.draftAnswer = {
     question: question.title,
     answer: question.answers[index],
@@ -464,7 +507,9 @@ function chooseAnswer(answer) {
 }
 
 function chooseOther() {
-  const existing = state.answers[state.step]?.isOther ? state.answers[state.step] : null;
+  const saved = state.answers[state.step]?.isOther ? state.answers[state.step] : null;
+  const existing = state.draftAnswer?.isOther ? state.draftAnswer : saved;
+  state.voiceOpen = true;
   state.draftAnswer = {
     question: paths[state.path].questions[state.step].title,
     answer: existing?.answer || "",
@@ -473,16 +518,16 @@ function chooseOther() {
     inputMethod: existing?.inputMethod || "typed"
   };
   render();
-  document.getElementById("otherAnswer")?.focus();
 }
 
 function continueAnswer() {
   if (!state.draftAnswer) return showToast("Choose an answer to continue.");
   if (state.draftAnswer.isOther) {
-    const input = document.getElementById("otherAnswer");
-    state.draftAnswer.answer = input?.value.trim() || "";
+    state.draftAnswer.answer = state.draftAnswer.answer.trim();
     if (!state.draftAnswer.answer) return showToast("Speak or type your answer first.");
   }
+  recognition?.abort?.();
+  state.voiceOpen = false;
   state.answers[state.step] = { ...state.draftAnswer };
   saveSession("answer");
   if (state.step < 2) {
@@ -617,13 +662,14 @@ function restart() {
   history.replaceState({}, "", url);
   sessionStorage.removeItem("advancioBoothSession");
   sessionStorage.removeItem("advancioPendingSession");
-  Object.assign(state, { view: "home", path: null, step: 0, answers: [], draftAnswer: null, slide: 0, viewedSlides: [], shared: false, saveStatus: "idle", sessionId: getSessionId() });
+  Object.assign(state, { view: "home", path: null, step: 0, answers: [], draftAnswer: null, voiceOpen: false, slide: 0, viewedSlides: [], shared: false, saveStatus: "idle", sessionId: getSessionId() });
   idleOverlay.hidden = true;
   render();
 }
 
 function goBack() {
   recognition?.abort?.();
+  state.voiceOpen = false;
   if (state.view === "quiz") {
     if (state.step > 0) {
       state.step -= 1;
@@ -715,6 +761,7 @@ document.addEventListener("click", event => {
   if (action === "choose-other") chooseOther();
   if (action === "continue-answer") continueAnswer();
   if (action === "speak") startVoiceInput();
+  if (action === "close-voice") closeVoice();
   if (action === "reveal") { state.view = "solution"; render(); saveSession("future"); }
   if (action === "next-slide") {
     const last = paths[state.path].slides.length - 1;
@@ -734,6 +781,10 @@ document.addEventListener("input", event => {
     state.draftAnswer.answer = event.target.value;
     if (state.draftAnswer.inputMethod !== "voice transcript") state.draftAnswer.inputMethod = "typed";
   }
+});
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && state.voiceOpen) closeVoice();
 });
 
 ["pointerdown", "keydown", "touchstart"].forEach(type => document.addEventListener(type, () => {

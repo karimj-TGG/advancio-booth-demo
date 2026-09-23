@@ -144,7 +144,7 @@ a { color: inherit; text-decoration: none; }
   color: var(--red);
 }
 
-.brand__mark svg { width: 100%; height: 100%; display: block; }
+.brand__logo { height: 34px; width: auto; display: block; }
 .brand__name { font-size: 1.65rem; font-weight: 800; letter-spacing: -.055em; }
 .brand__lab {
   margin-left: 6px;
@@ -672,7 +672,7 @@ h1, h2, h3, p { margin-top: 0; }
 @media (max-width: 760px) {
   .site-header { height: 80px; padding: 14px 19px; }
   .brand__name { font-size: 1.4rem; }
-  .brand__mark { width: 32px; }
+  .brand__logo { height: 26px; }
   .brand__lab, .session-pill, .icon-button span { display: none; }
   .icon-button { width: 46px; padding: 0; justify-content: center; }
   #app { min-height: calc(100dvh - 130px); padding: 20px 19px 30px; }
@@ -711,3 +711,130 @@ h1, h2, h3, p { margin-top: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+/* Voice / typed "Other" answer modal */
+.stage { display: contents; }
+.voice-modal[hidden] { display: none; }
+.voice-modal { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 24px; animation: fade-in .22s ease both; }
+.voice-modal__backdrop { position: absolute; inset: 0; background: rgba(255,255,255,.9); backdrop-filter: blur(14px); }
+.voice-modal__card { position: relative; width: min(860px, 94vw); padding: 48px 52px 40px; border: 2px solid var(--ink); border-radius: 30px; background: #fff; box-shadow: 18px 18px 0 var(--blue); }
+.voice-modal__card h2 { margin: 14px 0 6px; font-size: clamp(2rem, 3.4vw, 3rem); letter-spacing: -.05em; line-height: 1.05; }
+.voice-modal__note { margin: 0 0 22px; color: var(--muted); font-size: 1rem; }
+.voice-modal__close { position: absolute; top: 20px; right: 20px; width: 56px; height: 56px; padding: 0; justify-content: center; font-size: 2rem; line-height: 1; }
+.voice-modal__card label { display: block; margin: 22px 0 8px; font-size: .8rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.voice-modal__card textarea { width: 100%; resize: none; min-height: 130px; padding: 16px 18px; border: 1px solid var(--line-strong); border-radius: 16px; color: var(--ink); background: #fff; font-size: 1.3rem; line-height: 1.45; }
+.voice-modal__card textarea:focus { outline: 3px solid rgba(var(--accent-rgb), .18); border-color: var(--accent); }
+.voice-modal__card .voice-status { margin-top: 10px; font-size: 1rem; min-height: 1.4em; }
+.voice-modal__actions { display: flex; justify-content: space-between; gap: 16px; margin-top: 22px; }
+.voice-button--large { min-height: 76px; padding: 0 34px; font-size: 1.3rem; }
+.voice-button--large span { width: 16px; height: 16px; }
+@media (max-width: 760px) {
+  .voice-modal__card { padding: 34px 22px 24px; }
+  .voice-modal__actions { flex-direction: column-reverse; }
+  .voice-modal__actions button, .voice-button--large { width: 100%; }
+}
+
+/* TV / booth display: fixed 1920x1080 stage scaled to the window (see fitStage in experience.js). No scrolling. */
+html.is-stage, html.is-stage body { overflow: hidden; height: 100%; }
+html.is-stage .stage {
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  z-index: 2;
+  overflow: hidden;
+  transform-origin: 0 0;
+  transform: translate(var(--stage-x, 0), var(--stage-y, 0)) scale(var(--stage-scale, 1));
+}
+html.is-stage .site-header { flex: none; height: 92px; padding: 16px 76px; }
+html.is-stage .brand__logo { height: 38px; }
+html.is-stage .brand__lab { font-size: .8rem; padding: 8px 12px 7px; }
+html.is-stage .session-pill { font-size: .85rem; }
+html.is-stage .site-footer { flex: none; min-height: 0; height: 60px; padding: 0 76px 10px; font-size: 1rem; }
+html.is-stage #app { flex: 1; min-height: 0; overflow: hidden; padding: 12px 76px 30px; align-items: stretch; }
+html.is-stage .screen { width: 100%; height: 100%; max-width: 1768px; min-height: 0; align-items: center; }
+html.is-stage .eyebrow { font-size: .9rem; }
+
+html.is-stage .home-screen { gap: 90px; }
+html.is-stage .home-copy { padding: 0; }
+html.is-stage .home-copy h1 { font-size: 7rem; margin: 22px 0 24px; }
+html.is-stage .home-copy > p { font-size: 1.35rem; max-width: 620px; }
+html.is-stage .path-grid { height: 100%; max-height: 780px; }
+html.is-stage .path-card { min-height: 0; padding: 30px 30px 30px 36px; }
+html.is-stage .path-card h2 { font-size: 2.3rem; margin-top: 60px; }
+html.is-stage .path-card p { font-size: 1.1rem; }
+html.is-stage .path-card__number { font-size: .9rem; }
+
+html.is-stage .journey-layout { gap: 110px; grid-template-columns: minmax(0, 1.3fr) minmax(380px, .55fr); }
+html.is-stage .journey-topline { margin-bottom: 30px; }
+html.is-stage .journey-label { font-size: .95rem; }
+html.is-stage .step-count { font-size: .95rem; }
+html.is-stage .journey-main h1 { font-size: 4.2rem; margin-bottom: 14px; }
+html.is-stage .journey-main > p { font-size: 1.3rem; margin-bottom: 0; }
+html.is-stage .answer-list { margin-top: 24px; gap: 12px; }
+html.is-stage .answer-button { min-height: 76px; }
+html.is-stage .answer-button__text { font-size: 1.35rem; }
+html.is-stage .quiz-actions { margin-top: 20px; }
+html.is-stage .save-indicator { font-size: .95rem; }
+html.is-stage .signal-panel { min-height: 0; height: min(640px, 100%); }
+html.is-stage .signal-panel__head { font-size: .85rem; }
+html.is-stage .signal-tag { font-size: .95rem; }
+
+html.is-stage .future-screen { height: calc(100% - 22px); min-height: 0; padding: 48px 72px; gap: 50px; grid-template-columns: 1.3fr .7fr; border-radius: 38px; box-shadow: 20px 20px 0 var(--blue); align-self: start; }
+html.is-stage .future-copy h1 { font-size: var(--future-size, 4.4rem); margin-bottom: 18px; }
+html.is-stage .future-copy > p { font-size: 1.6rem; }
+html.is-stage .insight-stack { margin: 22px 0 30px; }
+html.is-stage .insight-row { font-size: 1.5rem; }
+html.is-stage .future-visual { min-height: 0; }
+html.is-stage .flow-orbit { width: 460px; }
+html.is-stage .orbit-chip { font-size: .95rem; }
+html.is-stage .flow-core span { font-size: .85rem; }
+
+html.is-stage .solution-screen { gap: 70px; grid-template-columns: .6fr 1.4fr; }
+html.is-stage .solution-copy h1 { font-size: 4.4rem; }
+html.is-stage .solution-copy > p { font-size: 1.25rem; }
+html.is-stage .solution-meta span { font-size: .85rem; }
+html.is-stage .product-stage { min-height: 0; height: calc(100% - 24px); display: flex; flex-direction: column; box-shadow: 18px 18px 0 var(--blue); }
+html.is-stage .product-chrome { flex: none; height: 56px; font-size: .9rem; }
+html.is-stage .product-view { flex: 1; min-height: 0; padding: 30px 40px 96px; display: flex; flex-direction: column; }
+html.is-stage .product-view__eyebrow { font-size: .85rem; }
+html.is-stage .product-view h2 { font-size: 2.9rem; margin: 10px 0 8px; }
+html.is-stage .product-view > p { font-size: 1.15rem; max-width: 900px; }
+html.is-stage .demo-ui { margin-top: 20px; grid-template-columns: 1fr 1fr 1fr; flex: none; }
+html.is-stage .demo-card, html.is-stage .demo-card--wide { grid-column: auto; min-height: 0; padding: 16px 18px; }
+html.is-stage .demo-card__label { font-size: .8rem; }
+html.is-stage .demo-card strong { font-size: 1.25rem; }
+html.is-stage .demo-card p { font-size: 1rem; }
+html.is-stage .product-screenshot { flex: 1; min-height: 0; margin-top: 18px; display: flex; flex-direction: column; }
+html.is-stage .product-screenshot__toolbar { flex: none; font-size: .8rem; }
+html.is-stage .product-screenshot__canvas { flex: 1; min-height: 0; }
+html.is-stage .product-screenshot__canvas.has-image { display: flex; justify-content: center; }
+html.is-stage .product-screenshot__image { height: 100%; width: auto; max-width: 100%; }
+html.is-stage .screenshot-content p { font-size: .95rem; }
+html.is-stage .stage-next { right: 32px; bottom: 26px; }
+
+html.is-stage .summary-screen { gap: 70px; grid-template-columns: 1fr 1fr; }
+html.is-stage .summary-copy h1 { font-size: 4.2rem; margin-bottom: 14px; }
+html.is-stage .summary-copy > p { font-size: 1.2rem; line-height: 1.45; margin-bottom: 0; }
+html.is-stage .journey-receipt { margin: 16px 0 22px; gap: 0; }
+html.is-stage .receipt-line { padding: 9px 0; grid-template-columns: 130px 1fr; }
+html.is-stage .receipt-line span { font-size: .8rem; }
+html.is-stage .receipt-line small { font-size: .85rem; }
+html.is-stage .receipt-line strong { font-size: 1.1rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+html.is-stage .takeaway-panel { padding: 44px 48px; box-shadow: 18px 18px 0 var(--blue); }
+html.is-stage .takeaway-panel h2 { font-size: 2.8rem; }
+html.is-stage .takeaway-panel > p { font-size: 1.15rem; }
+html.is-stage .share-layout { grid-template-columns: 200px 1fr; }
+html.is-stage .qr-frame { width: 200px; min-height: 200px; }
+html.is-stage .microcopy { font-size: .9rem; }
+html.is-stage .loading-screen { min-height: 0; }
+
+/* overlays live outside the stage, so scale their cards the same way */
+html.is-stage .booth-ticket__card, html.is-stage .idle-overlay__card, html.is-stage .voice-modal__card { transform: scale(var(--stage-scale, 1)); }
+html.is-stage .booth-ticket__card { width: 850px; }
+html.is-stage .idle-overlay__card { width: 720px; }
+html.is-stage .voice-modal__card { width: 900px; }
+html.is-stage .toast { font-size: calc(1.15rem * var(--stage-scale, 1)); bottom: calc(80px * var(--stage-scale, 1)); }

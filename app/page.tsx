@@ -12,12 +12,11 @@ export default function Home() {
         <div className="ambient__noise" />
       </div>
 
+      <div className="stage" id="stage">
       <header className="site-header">
         <button className="brand" type="button" data-action="home" aria-label="Return to the beginning">
-          <span className="brand__mark" aria-hidden="true">
-            <svg viewBox="0 0 42 36"><path d="M2 4h38L35 15 21 32 7 15Z" fill="currentColor"/><path d="M11 11h20l-5 7-10-3 5 10-4 4L8 13Z" fill="#fff"/></svg>
-          </span>
-          <span className="brand__name">advancio</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="brand__logo" src={`${basePath}/advancio-logo.svg`} alt="Advancio" width={230} height={34} />
           <span className="brand__lab">SPARK</span>
         </button>
         <div className="header-actions">
@@ -39,6 +38,9 @@ export default function Home() {
         <span><strong>Pre-built accelerators:</strong> live in weeks, not months.</span>
         <span className="site-footer__capabilities"><strong>Need custom implementation?</strong> Ask us about FutureShoring.</span>
       </footer>
+      </div>
+
+      <div className="voice-modal" id="voiceModal" hidden />
 
       <div className="idle-overlay" id="idleOverlay" role="dialog" aria-modal="true" aria-labelledby="idleTitle" hidden>
         <div className="idle-overlay__card">
