@@ -1,5 +1,7 @@
 import Script from "next/script";
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 export default function Home() {
   return (
     <>
@@ -31,7 +33,7 @@ export default function Home() {
         </div>
       </header>
 
-      <main id="app" tabIndex={-1} />
+      <main id="app" tabIndex={-1} data-base-path={basePath} />
 
       <footer className="site-footer">
         <span><strong>Pre-built accelerators:</strong> live in weeks, not months.</span>
@@ -49,7 +51,7 @@ export default function Home() {
 
       <div className="toast" id="toast" role="status" aria-live="polite" />
       <Script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" strategy="afterInteractive" />
-      <Script src="/experience.js" strategy="afterInteractive" />
+      <Script src={`${basePath}/experience.js`} strategy="afterInteractive" />
     </>
   );
 }

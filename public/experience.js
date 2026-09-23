@@ -1,3 +1,5 @@
+const basePath = document.getElementById("app")?.dataset.basePath || "";
+
 const paths = {
   claims: {
     number: "03",
@@ -336,7 +338,7 @@ function renderSolution() {
           <div class="product-screenshot" aria-label="Product screenshot area">
             <div class="product-screenshot__toolbar"><span>Actual product view</span><span>Screenshot ${state.slide + 1}</span></div>
             <div class="product-screenshot__canvas">
-              <img class="product-screenshot__image" src="/product-screenshots/${state.path}-${state.slide + 1}.png" alt="${data.solution} product screen ${state.slide + 1}" onload="this.closest('.product-screenshot__canvas').classList.add('has-image')" onerror="this.remove()" />
+              <img class="product-screenshot__image" src="${basePath}/product-screenshots/${state.path}-${state.slide + 1}.png" alt="${data.solution} product screen ${state.slide + 1}" onload="this.closest('.product-screenshot__canvas').classList.add('has-image')" onerror="this.remove()" />
               <div class="screenshot-rail"><i></i><i></i><i></i><i></i></div>
               <div class="screenshot-content">
                 <span class="screenshot-badge">${data.solution}</span>
@@ -545,7 +547,7 @@ async function saveSession(reason) {
   if (!state.path) return;
   state.saveStatus = "saving";
   try {
-    const response = await fetch("/api/session", {
+    const response = await fetch(`${basePath}/api/session`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ sessionId: state.sessionId, payload: sessionPayload(reason) })
@@ -677,7 +679,7 @@ async function hydrateFromUrl() {
   if (!sessionId) return;
   app.innerHTML = `<section class="screen loading-screen"><span class="eyebrow">Loading your journey</span><h1>Bringing back your exact answers…</h1></section>`;
   try {
-    const response = await fetch(`/api/session?id=${encodeURIComponent(sessionId)}`);
+    const response = await fetch(`${basePath}/api/session?id=${encodeURIComponent(sessionId)}`);
     if (!response.ok) throw new Error("not found");
     const { session } = await response.json();
     if (!paths[session.path] || !Array.isArray(session.answers) || session.answers.length !== 3) throw new Error("invalid");

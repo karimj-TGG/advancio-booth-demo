@@ -586,7 +586,8 @@ Before release, verify:
 
 Decisions made by the owner:
 
-- **Host:** Azure App Service (Linux, Node 22, Basic B1, Always On, HTTPS only). Build with `pnpm build:node`; run `pnpm start:node` (Next standalone output). The Sites/Cloudflare files and `pnpm build` remain for the Sites track.
+- **Host:** Azure App Service `advancio-booth` on plan `asp-advancio-marketing` (Linux, Node 22, Basic B1, Always On, HTTPS only) in `rg-advancio-marketing`, West US, subscription Microsoft Azure Sponsorship 2026. The plan is shared by future marketing apps. Build with `pnpm build:node`; run `pnpm start:node` (Next standalone output). The Sites/Cloudflare files and `pnpm build` remain for the Sites track.
+- **URL layout:** apps live under paths on one domain, `https://mk.advancio.io/<app>` (this app: `/booth`). A Cloudflare Worker (`infra/cloudflare/mk-router.js`, route `mk.advancio.io/*`, proxied) forwards by first path segment to each app's Azure Web App. Each app is built with `NEXT_PUBLIC_BASE_PATH=/<app>` (`pnpm build:node` defaults to `/booth`); local dev and the Sites build run at the root. Apps share one browser origin, so use unique cookie/storage key names per app.
 - **Database:** the shared Advancio Marketing Supabase project (`monypfguneoncckqlheb`). Each project owns a schema; this one uses `booth`. Users will live in shared Supabase Auth (`auth.users`) when sign-in is added.
 - **Table:** `booth.sessions` (migration `supabase/migrations/20260923091811_create_booth_sessions.sql`). RLS is on with no policies; only the service role can access it. `booth` is added to the project's Data API exposed schemas. `user_id` (nullable, references `auth.users`) is reserved for opt-in sign-in linking.
 - **Retention:** sessions are kept indefinitely; nothing deletes rows. `archived_at` and `expires_at` exist but are unused, reserved for a future archive mechanism. Revisit before contact capture because free-text answers and bearer links persist forever.
