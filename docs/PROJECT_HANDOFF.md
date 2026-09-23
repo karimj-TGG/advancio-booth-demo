@@ -22,7 +22,7 @@ Current production status:
 | Personalized QR/share link | Implemented |
 | Idle reset for booth use | Implemented |
 | Product screenshot slots | Implemented; approved image files still need to be supplied |
-| Supabase | Planned for an external/full deployment; not connected |
+| Supabase | Implemented on the external (Azure) track: `booth.sessions` in the shared Advancio Marketing project; `/api/session` uses it |
 | Resend email delivery | Planned; not connected |
 | Contact capture/consent | Not implemented |
 | Admin interface | Intentionally out of scope |
@@ -581,6 +581,20 @@ Before release, verify:
 - [ ] Keyboard navigation and focus states are usable.
 - [ ] No secrets appear in client code, logs, source control, or URLs.
 - [ ] Production build succeeds.
+
+## 14a. External track: Azure + Supabase (implemented 2026-09-23)
+
+Decisions made by the owner:
+
+- **Host:** Azure App Service (Linux, Node 22, Basic B1, Always On, HTTPS only). Build with `pnpm build:node`; run `pnpm start:node` (Next standalone output). The Sites/Cloudflare files and `pnpm build` remain for the Sites track.
+- **Database:** the shared Advancio Marketing Supabase project (`monypfguneoncckqlheb`). Each project owns a schema; this one uses `booth`. Users will live in shared Supabase Auth (`auth.users`) when sign-in is added.
+- **Table:** `booth.sessions` (migration `supabase/migrations/20260923091811_create_booth_sessions.sql`). RLS is on with no policies; only the service role can access it. `booth` is added to the project's Data API exposed schemas. `user_id` (nullable, references `auth.users`) is reserved for opt-in sign-in linking.
+- **Retention:** sessions are kept indefinitely; nothing deletes rows. `archived_at` and `expires_at` exist but are unused, reserved for a future archive mechanism. Revisit before contact capture because free-text answers and bearer links persist forever.
+- **API:** `/api/session` GET/POST keep the same request/response contract; validation uses zod. Server code is `app/api/session/route.ts` and `lib/supabase-server.ts`.
+- **Cutover:** D1 is no longer written by the app on this track. No D1 data was migrated (fresh start). `db/`, `drizzle/` and the D1 binding are retained only for the Sites track and must not be dual-written.
+- **Schema changes:** add new migration files under `supabase/migrations` and apply with `npx supabase db push` (linked project). Only change the `booth` schema.
+
+Azure application settings: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (secret, server-only), `APP_BASE_URL`. See `.env.example`. On Windows PowerShell, call `npx.cmd` / `pnpm.cmd` if script execution is disabled.
 
 ## 15. Copy-and-paste kickoff prompt for Claude Code
 

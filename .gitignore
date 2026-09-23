@@ -44,3 +44,8 @@ next-env.d.ts
 /.codex/
 /outputs/
 /work/
+
+# Supabase CLI local state
+/supabase/.temp/
+/supabase/.branches/
+!.env.example
