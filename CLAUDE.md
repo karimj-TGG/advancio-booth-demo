@@ -28,7 +28,8 @@ The four paths are Distribution, Underwriting, Claims, and Customer Experience.
 - Keep the idle reset: warn after inactivity, then reset for the next booth visitor.
 - Generate a summary of the full experience: selected area, every question and answer, recommended solution, future state, and story frames viewed.
 - Keep personalized QR/share links working.
-- Preserve a useful fallback when voice input, native sharing, clipboard access, QR generation, or persistence is unavailable.
+- Preserve a useful fallback when voice input, native sharing, clipboard access, QR generation, camera access, or persistence is unavailable.
+- Badge-scan personalization (optional, added 2026-09-30): OCR runs on-device only (Tesseract.js). Never upload, transmit, or store the badge photo — only the visitor-confirmed name is saved.
 - Do not add an admin interface unless explicitly requested.
 - Do not collect personal information silently. Any contact capture must be optional, clearly explained, and consent-based.
 

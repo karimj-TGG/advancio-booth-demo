@@ -12,6 +12,7 @@ const bodySchema = z.object({
 });
 
 type SummaryPayload = {
+  visitorName?: string | null;
   area?: string;
   recommendation?: string;
   recommendationReason?: string;
@@ -29,9 +30,11 @@ function escapeHtml(value: string) {
 function renderEmail(summary: SummaryPayload, personalizedUrl: string) {
   const answers = summary.answers ?? [];
   const stages = summary.storyStagesViewed?.length ? summary.storyStagesViewed.join(", ") : "Solution overview";
+  const name = summary.visitorName?.trim() || "";
+  const title = name ? `${name}'s Advancio bottleneck journey` : "My Advancio bottleneck journey";
 
   const text = [
-    "My Advancio bottleneck journey",
+    title,
     "",
     `Focus: ${summary.area ?? ""}`,
     `Recommended accelerator: ${summary.recommendation ?? ""}`,
@@ -50,7 +53,7 @@ function renderEmail(summary: SummaryPayload, personalizedUrl: string) {
 
   const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;color:#111;max-width:600px;margin:0 auto">
-      <h1 style="font-size:20px;margin:0 0 4px">Your Advancio bottleneck journey</h1>
+      <h1 style="font-size:20px;margin:0 0 4px">${escapeHtml(title)}</h1>
       <p style="margin:0 0 16px;color:#555">Focus: <strong>${escapeHtml(summary.area ?? "")}</strong> &middot; Recommended: <strong>${escapeHtml(summary.recommendation ?? "")}</strong></p>
       <p style="margin:0 0 16px">${escapeHtml(summary.futureState ?? "")}</p>
       <table role="presentation" style="width:100%;border-collapse:collapse;margin-bottom:16px">
@@ -129,7 +132,11 @@ export async function POST(request: Request) {
 
   const appBaseUrl = process.env.APP_BASE_URL || new URL(request.url).origin;
   const personalizedUrl = `${appBaseUrl}?session=${encodeURIComponent(sessionId)}`;
-  const { text, html } = renderEmail(session.summary as SummaryPayload, personalizedUrl);
+  const summary = session.summary as SummaryPayload;
+  const { text, html } = renderEmail(summary, personalizedUrl);
+  const subject = summary.visitorName?.trim()
+    ? `${summary.visitorName.trim()}'s Advancio bottleneck journey`
+    : "Your Advancio bottleneck journey";
 
   try {
     const resendResponse = await fetch("https://api.resend.com/emails", {
@@ -138,7 +145,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         from: fromEmail,
         to: [email],
-        subject: "Your Advancio bottleneck journey",
+        subject,
         text,
         html,
       }),

@@ -165,7 +165,13 @@ const state = {
   emailOpen: false,
   emailStatus: "idle",
   emailError: "",
-  bookingOpen: false
+  bookingOpen: false,
+  visitorName: null,
+  badgeOpen: false,
+  badgeStatus: "idle",
+  badgeDraftName: "",
+  badgeError: "",
+  badgeStream: null
 };
 
 // The booth display is a large TV: lay everything out on a fixed 1920x1080 stage and scale it to the window so nothing scrolls.
@@ -221,6 +227,7 @@ function render() {
   renderVoiceModal();
   renderEmailModal();
   renderBookingModal();
+  renderBadgeModal();
   app.focus({ preventScroll: true });
   resetIdleTimer();
 }
@@ -229,6 +236,15 @@ function renderHome() {
   app.innerHTML = `
     <section class="screen home-screen" aria-labelledby="homeTitle">
       <div class="home-copy">
+        ${state.visitorName ? `
+          <div class="badge-row">
+            <span class="badge-row__hello">Welcome, <strong>${escapeHtml(state.visitorName)}</strong></span>
+            <button class="badge-row__clear" type="button" data-action="clear-badge">Not you?</button>
+          </div>` : `
+          <button class="badge-row__scan" type="button" data-action="open-badge">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8a2 2 0 0 1 2-2h1.2l.8-1.4A2 2 0 0 1 9.7 3.6h4.6a2 2 0 0 1 1.7 1L17 6h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><circle cx="12" cy="13" r="3.4"/></svg>
+            Scan your badge to personalize this
+          </button>`}
         <span class="eyebrow">Tap into your messy middle</span>
         <h1 id="homeTitle">Choose your <span class="question-accent">bottleneck</span></h1>
         <p>Choose the area where work gets stuck. In a few taps, see what life could look like on the other side.</p>
@@ -425,6 +441,7 @@ function summaryPayload() {
     .map(index => data.slides[index]?.title)
     .filter(Boolean);
   return {
+    visitorName: state.visitorName,
     area: data.title,
     recommendation: data.solution,
     recommendationReason: data.solutionLine,
@@ -445,7 +462,7 @@ function renderSummary() {
     <section class="screen summary-screen" aria-labelledby="summaryTitle">
       <div class="summary-copy">
         <span class="eyebrow">Your complete journey</span>
-        <h1 id="summaryTitle">Your clearest path is <span>${data.solution}</span>.</h1>
+        <h1 id="summaryTitle">${state.visitorName ? `${escapeHtml(state.visitorName)}, your` : "Your"} clearest path is <span>${data.solution}</span>.</h1>
         <p>You chose <strong>${data.title}</strong>, described where work gets stuck, pictured a better day, and explored how ${data.solution} can move you toward a future where ${data.future}.</p>
         <div class="journey-receipt">
           ${summary.answers.map((item, index) => `<div class="receipt-line"><span>Answer 0${index + 1}</span><div><small>${escapeHtml(item.question)}</small><strong>${escapeHtml(item.answer)}</strong></div></div>`).join("")}
@@ -591,13 +608,14 @@ function sessionPayload(reason) {
     slide: state.slide,
     answers: state.answers,
     viewedSlides: state.viewedSlides,
+    visitorName: state.visitorName,
     summary: complete ? summaryPayload() : null,
     updatedAt: new Date().toISOString()
   };
 }
 
 async function saveSession(reason) {
-  if (!state.path) return;
+  if (!state.path && !state.visitorName) return;
   state.saveStatus = "saving";
   try {
     const response = await fetch(`${basePath}/api/session`, {
@@ -728,6 +746,149 @@ function closeBooking() {
   render();
 }
 
+// Badge scan: OCR runs entirely on-device (Tesseract.js). The captured photo is never
+// uploaded, sent to any server, or stored — only the name the visitor confirms is saved.
+function renderBadgeModal() {
+  const modal = document.getElementById("badgeModal");
+  if (!modal) return;
+  if (!state.badgeOpen) { stopBadgeCamera(); modal.hidden = true; modal.innerHTML = ""; return; }
+  modal.hidden = false;
+  const s = state.badgeStatus;
+  modal.innerHTML = `
+    <div class="voice-modal__backdrop" data-action="close-badge"></div>
+    <div class="voice-modal__card voice-modal__card--email" role="dialog" aria-modal="true" aria-labelledby="badgeTitle">
+      <button class="icon-button voice-modal__close" type="button" data-action="close-badge" aria-label="Close">×</button>
+      <span class="eyebrow">Personalize your journey</span>
+      <h2 id="badgeTitle">Scan your conference badge</h2>
+      ${s === "idle" ? `
+        <p class="voice-modal__note">Hold your badge up to the camera. The photo is read for text on this device only — it is never uploaded, sent to a server, or stored. Only the name you confirm next is saved with your session.</p>
+        <div class="voice-modal__actions">
+          <button class="secondary-button" type="button" data-action="badge-type-instead">Type my name instead</button>
+          <button class="primary-button" type="button" data-action="badge-start-camera">Use camera</button>
+        </div>` : ""}
+      ${s === "starting" ? `<p class="voice-modal__note">Requesting camera access…</p>` : ""}
+      ${s === "live" ? `
+        <p class="voice-modal__note">Frame your badge in view, then capture.</p>
+        <div class="badge-camera"><video id="badgeVideo" autoplay playsinline muted></video></div>
+        <div class="voice-modal__actions">
+          <button class="secondary-button" type="button" data-action="close-badge">Cancel</button>
+          <button class="primary-button" type="button" data-action="badge-capture">Capture</button>
+        </div>` : ""}
+      ${s === "scanning" ? `
+        <div class="badge-camera badge-camera--frozen"><canvas id="badgeCanvasPreview"></canvas></div>
+        <p class="voice-modal__note">Reading your badge…</p>` : ""}
+      ${s === "edit" ? `
+        <p class="voice-modal__note">${state.badgeError || "Confirm or edit your name."}</p>
+        <label for="badgeNameInput">Your name</label>
+        <input id="badgeNameInput" type="text" maxlength="80" placeholder="Your name" value="${escapeHtml(state.badgeDraftName)}" />
+        <div class="voice-modal__actions">
+          <button class="secondary-button" type="button" data-action="close-badge">Skip</button>
+          <button class="primary-button" type="button" data-action="badge-confirm">Use this name</button>
+        </div>` : ""}
+    </div>`;
+  if (s === "live") attachBadgeStream();
+  if (s === "edit") document.getElementById("badgeNameInput")?.focus();
+}
+
+function openBadgeScan() {
+  state.badgeOpen = true;
+  state.badgeStatus = "idle";
+  state.badgeDraftName = state.visitorName || "";
+  state.badgeError = "";
+  render();
+}
+
+function closeBadgeScan() {
+  stopBadgeCamera();
+  state.badgeOpen = false;
+  render();
+}
+
+function badgeTypeInstead() {
+  state.badgeStatus = "edit";
+  state.badgeDraftName = state.visitorName || "";
+  state.badgeError = "";
+  render();
+}
+
+async function startBadgeCamera() {
+  state.badgeStatus = "starting";
+  render();
+  try {
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error("unsupported");
+    state.badgeStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    state.badgeStatus = "live";
+    render();
+  } catch {
+    state.badgeStatus = "edit";
+    state.badgeDraftName = state.visitorName || "";
+    state.badgeError = "Camera unavailable. Type your name instead.";
+    render();
+  }
+}
+
+function attachBadgeStream() {
+  const video = document.getElementById("badgeVideo");
+  if (video && state.badgeStream) video.srcObject = state.badgeStream;
+}
+
+function stopBadgeCamera() {
+  state.badgeStream?.getTracks().forEach(track => track.stop());
+  state.badgeStream = null;
+}
+
+function guessNameFromOcr(text) {
+  const lines = text.split("\n").map(line => line.trim()).filter(Boolean);
+  const looksLikeNameWord = line => /^[A-Za-z][A-Za-z'.-]{1,25}$/.test(line);
+  const startIndex = lines.findIndex(looksLikeNameWord);
+  if (startIndex === -1) return "";
+  const picked = [lines[startIndex]];
+  const next = lines[startIndex + 1];
+  if (next && looksLikeNameWord(next) && next === next.toUpperCase()) picked.push(next);
+  return picked.join(" ").split(/\s+/).map(word => word[0].toUpperCase() + word.slice(1).toLowerCase()).join(" ");
+}
+
+async function captureBadgePhoto() {
+  const video = document.getElementById("badgeVideo");
+  if (!video) return;
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth || 1280;
+  canvas.height = video.videoHeight || 720;
+  canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+  stopBadgeCamera();
+  state.badgeStatus = "scanning";
+  render();
+  const preview = document.getElementById("badgeCanvasPreview");
+  if (preview) { preview.width = canvas.width; preview.height = canvas.height; preview.getContext("2d").drawImage(canvas, 0, 0); }
+  try {
+    if (!window.Tesseract) throw new Error("OCR unavailable");
+    const { data } = await window.Tesseract.recognize(canvas, "eng");
+    const guess = guessNameFromOcr(data.text || "");
+    state.badgeDraftName = guess;
+    state.badgeError = guess ? "" : "Could not read a name automatically. Type it below.";
+  } catch {
+    state.badgeDraftName = "";
+    state.badgeError = "Could not read your badge. Type your name below.";
+  }
+  state.badgeStatus = "edit";
+  render();
+}
+
+function confirmBadgeName() {
+  const input = document.getElementById("badgeNameInput");
+  const name = (input?.value || "").trim().slice(0, 80);
+  state.visitorName = name || null;
+  state.badgeOpen = false;
+  render();
+  saveSession("badge");
+}
+
+function clearBadge() {
+  state.visitorName = null;
+  render();
+  saveSession("badge");
+}
+
 async function copyLink() {
   try {
     await navigator.clipboard.writeText(personalizedUrl());
@@ -746,12 +907,13 @@ function showToast(message) {
 
 function restart() {
   recognition?.abort?.();
+  stopBadgeCamera();
   const url = new URL(window.location.href);
   url.search = "";
   history.replaceState({}, "", url);
   sessionStorage.removeItem(sessionKey);
   sessionStorage.removeItem(pendingKey);
-  Object.assign(state, { view: "home", path: null, step: 0, answers: [], draftAnswer: null, voiceOpen: false, slide: 0, viewedSlides: [], shared: false, saveStatus: "idle", sessionId: getSessionId() });
+  Object.assign(state, { view: "home", path: null, step: 0, answers: [], draftAnswer: null, voiceOpen: false, slide: 0, viewedSlides: [], shared: false, saveStatus: "idle", sessionId: getSessionId(), visitorName: null, badgeOpen: false, badgeStatus: "idle", badgeDraftName: "", badgeError: "" });
   idleOverlay.hidden = true;
   render();
 }
@@ -826,6 +988,7 @@ async function hydrateFromUrl() {
       step: 2,
       slide: Number.isInteger(session.slide) ? session.slide : 2,
       viewedSlides: Array.isArray(session.viewedSlides) ? session.viewedSlides : [],
+      visitorName: typeof session.visitorName === "string" ? session.visitorName : null,
       shared: true,
       saveStatus: "saved"
     });
@@ -865,6 +1028,13 @@ document.addEventListener("click", event => {
   if (action === "send-email") submitEmail();
   if (action === "open-booking") openBooking();
   if (action === "close-booking") closeBooking();
+  if (action === "open-badge") openBadgeScan();
+  if (action === "close-badge") closeBadgeScan();
+  if (action === "clear-badge") clearBadge();
+  if (action === "badge-type-instead") badgeTypeInstead();
+  if (action === "badge-start-camera") startBadgeCamera();
+  if (action === "badge-capture") captureBadgePhoto();
+  if (action === "badge-confirm") confirmBadgeName();
   if (action === "copy") copyLink();
   if (action === "stay") keepSession();
 });
@@ -878,7 +1048,8 @@ document.addEventListener("input", event => {
 
 document.addEventListener("keydown", event => {
   if (event.key === "Enter" && event.target.id === "summaryEmailInput") { event.preventDefault(); submitEmail(); }
-  if (event.key === "Escape") { if (state.emailOpen) closeEmail(); else if (state.bookingOpen) closeBooking(); }
+  if (event.key === "Enter" && event.target.id === "badgeNameInput") { event.preventDefault(); confirmBadgeName(); }
+  if (event.key === "Escape") { if (state.emailOpen) closeEmail(); else if (state.bookingOpen) closeBooking(); else if (state.badgeOpen) closeBadgeScan(); }
 });
 
 document.addEventListener("keydown", event => {

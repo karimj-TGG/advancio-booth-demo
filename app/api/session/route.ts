@@ -14,6 +14,7 @@ const payloadSchema = z
     slide: z.number().int().min(0).max(100).nullish(),
     answers: z.array(z.unknown()).max(50).optional(),
     viewedSlides: z.array(z.unknown()).max(50).optional(),
+    visitorName: z.string().max(120).nullish(),
     summary: z.record(z.unknown()).nullish(),
   })
   .passthrough();
@@ -75,6 +76,7 @@ export async function POST(request: Request) {
           slide: payload.slide ?? null,
           answers: payload.answers ?? [],
           viewed_slides: payload.viewedSlides ?? [],
+          visitor_name: payload.visitorName ?? null,
           summary: payload.summary ?? null,
           payload,
           updated_at: new Date().toISOString(),

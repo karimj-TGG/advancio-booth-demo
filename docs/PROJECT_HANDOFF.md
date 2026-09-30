@@ -94,6 +94,16 @@ There are three questions and three product-story slides for each path. The clie
 - Selecting a path starts a fresh three-question journey for that area.
 - (Added 2026-09-30) Below the touch cue: a "Book a demo" button opening the same in-app Zoho Booking modal as the summary screen, and an "Advancio Spark Products" link to `labs.advancio.io` (opens in a new tab).
 
+### FR-01a — Optional badge-scan personalization (added 2026-09-30)
+
+From the home screen, a visitor can optionally scan their conference badge to personalize the journey with their name, or skip straight to typing it, or skip entirely.
+
+- Entry point: `.badge-row` on the home screen (`renderHome` in `public/experience.js`). Shows "Scan your badge to personalize this" when no name is set, or "Welcome, <name>" with a "Not you?" clear link once one is.
+- Flow: consent screen (explains what happens) -> camera (`getUserMedia`, environment-facing) -> capture to a canvas -> on-device OCR (Tesseract.js, loaded from cdnjs in `app/page.tsx`, same pattern as QRCode.js) -> best-guess name parsed from the OCR text -> an editable confirm step (mirrors the voice-transcript review pattern) before anything is saved. "Type my name instead" skips the camera entirely; camera errors or an unsupported browser fall back to the same typed-entry step automatically.
+- Privacy: the photo is a local `<canvas>`, only ever used as OCR input in the browser. It is never uploaded, sent to any endpoint, or written to disk. Only the string the visitor confirms is saved with the session (Supabase `booth.sessions.visitor_name`, migration `20260930012900_add_visitor_name.sql`, both `booth` and `booth_test`), same retention as the rest of the session.
+- Used in: the home greeting, the summary heading ("<Name>, your clearest path is..."), and the emailed summary's subject and heading (`app/api/send-summary/route.ts`).
+- `saveSession()` (`public/experience.js`) used to no-op until a path was chosen (`if (!state.path) return`), which silently dropped a name captured on the home screen. It now also saves when a name is set (`if (!state.path && !state.visitorName) return`), so every data point the visitor enters — including before choosing a path — reaches Supabase, not just answers.
+
 ### FR-02 — Questions and answers
 
 - Each path has exactly three questions in the current content model.

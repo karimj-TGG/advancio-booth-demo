@@ -237,6 +237,14 @@ a { color: inherit; text-decoration: none; }
 
 h1, h2, h3, p { margin-top: 0; }
 
+.badge-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.badge-row__scan { display: inline-flex; align-items: center; gap: 9px; padding: 9px 16px; border: 1px dashed var(--line-strong); border-radius: 999px; background: transparent; color: var(--ink); font-weight: 700; font-size: .88rem; cursor: pointer; }
+.badge-row__scan:hover, .badge-row__scan:focus-visible { border-color: var(--red); color: var(--red); outline: none; }
+.badge-row__scan svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.badge-row__hello { font-weight: 700; font-size: .95rem; color: var(--ink); }
+.badge-row__clear { border: none; background: transparent; color: var(--muted); font-size: .82rem; text-decoration: underline; cursor: pointer; padding: 0; }
+.badge-row__clear:hover, .badge-row__clear:focus-visible { color: var(--red); outline: none; }
+
 .home-screen {
   display: grid;
   grid-template-columns: .82fr 1.18fr;
@@ -735,8 +743,10 @@ h1, h2, h3, p { margin-top: 0; }
 .voice-modal__actions { display: flex; justify-content: space-between; gap: 16px; margin-top: 22px; }
 .voice-button--large { min-height: 76px; padding: 0 34px; font-size: 1.3rem; }
 .voice-button--large span { width: 16px; height: 16px; }
-.voice-modal__card input[type="email"] { width: 100%; padding: 16px 18px; border: 1px solid var(--line-strong); border-radius: 16px; color: var(--ink); background: #fff; font-size: 1.2rem; }
-.voice-modal__card input[type="email"]:focus { outline: 3px solid rgba(var(--accent-rgb), .18); border-color: var(--accent); }
+.voice-modal__card input[type="email"], .voice-modal__card input[type="text"] { width: 100%; padding: 16px 18px; border: 1px solid var(--line-strong); border-radius: 16px; color: var(--ink); background: #fff; font-size: 1.2rem; }
+.voice-modal__card input[type="email"]:focus, .voice-modal__card input[type="text"]:focus { outline: 3px solid rgba(var(--accent-rgb), .18); border-color: var(--accent); }
+.badge-camera { margin-top: 16px; border-radius: 16px; overflow: hidden; border: 1px solid var(--line-strong); background: #111; aspect-ratio: 4 / 3; }
+.badge-camera video, .badge-camera canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
 .voice-modal__card .voice-status[role="alert"]:empty { display: none; }
 .voice-modal__card .voice-status[role="alert"] { color: var(--red); }
 .voice-modal__card--email { width: min(560px, 92vw); }
