@@ -41,6 +41,8 @@ export default function Home() {
       </div>
 
       <div className="voice-modal" id="voiceModal" hidden />
+      <div className="voice-modal" id="emailModal" hidden />
+      <div className="voice-modal" id="bookingModal" hidden />
 
       <div className="idle-overlay" id="idleOverlay" role="dialog" aria-modal="true" aria-labelledby="idleTitle" hidden>
         <div className="idle-overlay__card">

@@ -23,8 +23,8 @@ Current production status:
 | Idle reset for booth use | Implemented |
 | Product screenshot slots | Implemented; approved image files still need to be supplied |
 | Supabase | Implemented on the external (Azure) track: `booth.sessions` in the shared Advancio Marketing project; `/api/session` uses it |
-| Resend email delivery | Planned; not connected |
-| Contact capture/consent | Not implemented |
+| Resend email delivery | Implemented (2026-09-30): server-only `/api/send-summary`, opt-in |
+| Contact capture/consent | Implemented (2026-09-30): email only, explained at point of ask, logged with consent version |
 | Admin interface | Intentionally out of scope |
 | Automated end-to-end tests | Not implemented |
 
@@ -139,7 +139,7 @@ There are three questions and three product-story slides for each path. The clie
 - Offer an immediate five-minute booth demo CTA.
 - Offer restart to explore another bottleneck.
 - Offer a personalized QR code and share/copy controls.
-- Link to Advancio’s deeper-demo booking page.
+- "Book a deeper demo" opens an in-app modal embedding the Zoho Booking widget (`renderBookingModal`), so the visitor never leaves the booth experience. No booking data is sent to or stored by this app; Zoho owns that flow entirely.
 
 ### FR-07 — Persistence and restoration
 
@@ -167,17 +167,15 @@ There are three questions and three product-story slides for each path. The clie
 - Respect reduced-motion preferences where styling provides animation.
 - Do not depend on color alone to communicate selection or state.
 
-### FR-10 — Optional future contact delivery
+### FR-10 — Optional contact delivery (implemented 2026-09-30)
 
-This requirement is approved as a direction but not implemented:
+The summary screen's "Email my journey" button opens a modal (`renderEmailModal` in `public/experience.js`) asking only for an email address, with the reason stated inline ("We'll send your personalized summary... It's used only for this email, never for marketing"). Submitting is the consent action; there is no separate marketing opt-in and none is implied.
 
-- Contact details must be optional and requested only after the value of the summary is visible.
-- Explain why email or phone is requested.
-- Require affirmative consent before sending follow-up material.
-- Use Resend from server-side code only.
-- Never include API keys in client bundles.
-- Store consent timestamp, consent language/version, and delivery status.
-- Avoid collecting information that is not necessary for the requested follow-up.
+- Server route: `app/api/send-summary/route.ts`. Validates `sessionId` and `email` with zod, looks up the session's stored `summary` in Supabase, writes a `booth.follow_up_requests` row (`consent_text_version: "summary-email-v1"`, `consented_at`, `delivery_status`), then calls the Resend REST API server-side with `RESEND_API_KEY`. `delivery_status` is updated to `sent` (with `resend_message_id`) or `failed` (with a short `error`).
+- Table: `booth.follow_up_requests` (migration `20260930001945_create_follow_up_requests.sql`, created in both `booth` and `booth_test`). RLS on, service role only, same as `sessions`.
+- Env: `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (e.g. `"Advancio Spark <spark@advancio.io>"`), server-only, never sent to the browser. Both must be set in Azure app settings for production; see `.env.example`. The Resend account has both `advancio.io` and `thegeeksgroup.com` verified as sending domains.
+- Retention: follow-up requests are kept indefinitely, matching the session retention decision. No phone, name or company is collected — only what FR-10 needs for this one delivery.
+- Native share/SMS was removed from the summary screen at the owner's request (2026-09-30); only email delivery and "Copy personalized link" remain.
 
 ## 5. Non-functional requirements
 

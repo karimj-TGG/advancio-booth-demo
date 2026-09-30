@@ -1,4 +1,9 @@
 const basePath = document.getElementById("app")?.dataset.basePath || "";
+// Apps on mk.advancio.io share one browser origin, so storage keys carry the app path.
+// Production (/booth) keeps the original key names. Declared here because `state` below calls getSessionId() on load.
+const storageSuffix = !basePath || basePath === "/booth" ? "" : basePath;
+const sessionKey = `advancioBoothSession${storageSuffix}`;
+const pendingKey = `advancioPendingSession${storageSuffix}`;
 
 const paths = {
   claims: {
@@ -156,7 +161,11 @@ const state = {
   viewedSlides: [],
   shared: false,
   saveStatus: "idle",
-  sessionId: getSessionId()
+  sessionId: getSessionId(),
+  emailOpen: false,
+  emailStatus: "idle",
+  emailError: "",
+  bookingOpen: false
 };
 
 // The booth display is a large TV: lay everything out on a fixed 1920x1080 stage and scale it to the window so nothing scrolls.
@@ -183,10 +192,10 @@ let toastTimer;
 let recognition;
 
 function getSessionId() {
-  const existing = sessionStorage.getItem("advancioBoothSession");
+  const existing = sessionStorage.getItem(sessionKey);
   if (existing) return existing;
   const id = (crypto.randomUUID?.() || `session-${Date.now()}-${Math.random().toString(36).slice(2)}`).replace(/[^a-zA-Z0-9_-]/g, "");
-  sessionStorage.setItem("advancioBoothSession", id);
+  sessionStorage.setItem(sessionKey, id);
   return id;
 }
 
@@ -210,6 +219,8 @@ function render() {
   if (state.view === "solution") renderSolution();
   if (state.view === "summary") renderSummary();
   renderVoiceModal();
+  renderEmailModal();
+  renderBookingModal();
   app.focus({ preventScroll: true });
   resetIdleTimer();
 }
@@ -423,13 +434,6 @@ function summaryPayload() {
   };
 }
 
-function summaryText() {
-  const summary = summaryPayload();
-  const answers = summary.answers.map(item => `• ${item.question}\n  ${item.answer}`).join("\n");
-  const stages = summary.storyStagesViewed.length ? summary.storyStagesViewed.join("; ") : "Solution overview";
-  return `My Advancio bottleneck journey\n\nFocus: ${summary.area}\nRecommended accelerator: ${summary.recommendation}\nFuture state: ${summary.futureState}.\n\nMy answers:\n${answers}\n\nWhat I explored: ${stages}\n\nWhy this path: ${summary.recommendationReason}\n\nContinue my exact journey: ${personalizedUrl()}\n\nBuilt with Advancio.`;
-}
-
 function renderSummary() {
   const data = paths[state.path];
   const summary = summaryPayload();
@@ -455,9 +459,9 @@ function renderSummary() {
         <div class="share-layout">
           <div class="qr-frame" id="qrCode"><span class="qr-fallback">Preparing your personalized link…</span></div>
           <div class="share-actions">
-            <button class="primary-button" type="button" data-action="share">Text or email my journey</button>
+            <button class="primary-button" type="button" data-action="open-email">Email my journey</button>
             <button class="secondary-button" type="button" data-action="copy">Copy personalized link</button>
-            <a class="secondary-button" href="https://www.advancio.com/book-a-free-demo/" target="_blank" rel="noopener">Book a deeper demo</a>
+            <button class="secondary-button" type="button" data-action="open-booking">Book a deeper demo</button>
             <p class="microcopy">Your answers and explored screens are saved to this anonymous booth session. Voice audio is never stored.</p>
           </div>
         </div>
@@ -474,7 +478,7 @@ function drawQr() {
     target.innerHTML = "";
     new QRCode(target, { text: personalizedUrl(), width: 164, height: 164, colorDark: "#090909", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
   } else {
-    target.innerHTML = `<span class="qr-fallback">Use “Text or email my journey” to continue on your device.</span>`;
+    target.innerHTML = `<span class="qr-fallback">Use “Email my journey” to continue on your device.</span>`;
   }
 }
 
@@ -599,10 +603,10 @@ async function saveSession(reason) {
     });
     if (!response.ok) throw new Error("save failed");
     state.saveStatus = "saved";
-    sessionStorage.removeItem("advancioPendingSession");
+    sessionStorage.removeItem(pendingKey);
   } catch {
     state.saveStatus = "error";
-    sessionStorage.setItem("advancioPendingSession", JSON.stringify(sessionPayload(reason)));
+    sessionStorage.setItem(pendingKey, JSON.stringify(sessionPayload(reason)));
   }
 }
 
@@ -623,20 +627,101 @@ function showBoothTicket() {
   document.body.appendChild(ticket);
 }
 
-async function shareJourney() {
-  const data = paths[state.path];
-  const payload = { title: `${data.solution} — my ITC bottleneck journey`, text: summaryText(), url: personalizedUrl() };
-  try {
-    if (navigator.share) {
-      await navigator.share(payload);
-      showToast("Your journey is ready to send.");
-    } else {
-      await navigator.clipboard.writeText(`${summaryText()}\n${personalizedUrl()}`);
-      showToast("Journey copied. Paste it into a text or email.");
-    }
-  } catch (error) {
-    if (error?.name !== "AbortError") copyLink();
+function renderEmailModal() {
+  const modal = document.getElementById("emailModal");
+  if (!modal) return;
+  if (!state.emailOpen) { modal.hidden = true; modal.innerHTML = ""; return; }
+  modal.hidden = false;
+  const sending = state.emailStatus === "sending";
+  const sent = state.emailStatus === "sent";
+  modal.innerHTML = `
+    <div class="voice-modal__backdrop" data-action="close-email"></div>
+    <div class="voice-modal__card voice-modal__card--email" role="dialog" aria-modal="true" aria-labelledby="emailTitle">
+      <button class="icon-button voice-modal__close" type="button" data-action="close-email" aria-label="Close">×</button>
+      <span class="eyebrow">Take it with you</span>
+      <h2 id="emailTitle">Email my journey</h2>
+      ${sent ? `
+        <p class="voice-modal__note">Sent. Check your inbox for your personalized summary and link.</p>
+        <div class="voice-modal__actions"><span></span><button class="primary-button" type="button" data-action="close-email">Done</button></div>
+      ` : `
+        <p class="voice-modal__note">We'll send your personalized summary and a link back to it to this address. It's used only for this email, never for marketing.</p>
+        <label for="summaryEmailInput">Your email</label>
+        <input id="summaryEmailInput" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com" value="" ${sending ? "disabled" : ""} />
+        <div class="voice-status" role="alert">${state.emailError || ""}</div>
+        <div class="voice-modal__actions">
+          <button class="secondary-button" type="button" data-action="close-email" ${sending ? "disabled" : ""}>Cancel</button>
+          <button class="primary-button" type="button" data-action="send-email" ${sending ? "disabled" : ""}>${sending ? "Sending…" : "Send"}</button>
+        </div>
+      `}
+    </div>`;
+  document.getElementById("summaryEmailInput")?.focus();
+}
+
+function openEmail() {
+  state.emailOpen = true;
+  state.emailStatus = "idle";
+  state.emailError = "";
+  render();
+}
+
+function closeEmail() {
+  state.emailOpen = false;
+  render();
+}
+
+async function submitEmail() {
+  const input = document.getElementById("summaryEmailInput");
+  const email = input?.value.trim() || "";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    state.emailError = "Enter a valid email address.";
+    renderEmailModal();
+    return;
   }
+  state.emailStatus = "sending";
+  state.emailError = "";
+  renderEmailModal();
+  try {
+    const response = await fetch(`${basePath}/api/send-summary`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sessionId: state.sessionId, email })
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body?.error || "Send failed");
+    state.emailStatus = "sent";
+    renderEmailModal();
+  } catch (error) {
+    state.emailStatus = "idle";
+    state.emailError = error instanceof Error ? error.message : "Could not send. Please try again.";
+    renderEmailModal();
+  }
+}
+
+function renderBookingModal() {
+  const modal = document.getElementById("bookingModal");
+  if (!modal) return;
+  if (!state.bookingOpen) { modal.hidden = true; modal.innerHTML = ""; return; }
+  modal.hidden = false;
+  modal.innerHTML = `
+    <div class="voice-modal__backdrop" data-action="close-booking"></div>
+    <div class="voice-modal__card voice-modal__card--booking" role="dialog" aria-modal="true" aria-labelledby="bookingTitle">
+      <button class="icon-button voice-modal__close" type="button" data-action="close-booking" aria-label="Close">×</button>
+      <span class="eyebrow">Book a deeper demo</span>
+      <h2 id="bookingTitle">Pick a time that works for you.</h2>
+      <div class="booking-frame">
+        <iframe title="Book an Advancio Spark demo" width="100%" height="750px" src="https://advancio.zohobookings.com/portal-embed#/AdvancioSparkDemo" frameborder="0" allowfullscreen></iframe>
+      </div>
+    </div>`;
+}
+
+function openBooking() {
+  state.bookingOpen = true;
+  render();
+}
+
+function closeBooking() {
+  state.bookingOpen = false;
+  render();
 }
 
 async function copyLink() {
@@ -660,8 +745,8 @@ function restart() {
   const url = new URL(window.location.href);
   url.search = "";
   history.replaceState({}, "", url);
-  sessionStorage.removeItem("advancioBoothSession");
-  sessionStorage.removeItem("advancioPendingSession");
+  sessionStorage.removeItem(sessionKey);
+  sessionStorage.removeItem(pendingKey);
   Object.assign(state, { view: "home", path: null, step: 0, answers: [], draftAnswer: null, voiceOpen: false, slide: 0, viewedSlides: [], shared: false, saveStatus: "idle", sessionId: getSessionId() });
   idleOverlay.hidden = true;
   render();
@@ -740,7 +825,7 @@ async function hydrateFromUrl() {
       shared: true,
       saveStatus: "saved"
     });
-    sessionStorage.setItem("advancioBoothSession", sessionId);
+    sessionStorage.setItem(sessionKey, sessionId);
   } catch {
     showToast("That saved journey is not available. Start a new one below.");
   }
@@ -771,7 +856,11 @@ document.addEventListener("click", event => {
   if (action === "summary") { state.view = "summary"; render(); }
   if (action === "booth-demo") showBoothTicket();
   if (action === "close-ticket") actionButton.closest(".booth-ticket")?.remove();
-  if (action === "share") shareJourney();
+  if (action === "open-email") openEmail();
+  if (action === "close-email") closeEmail();
+  if (action === "send-email") submitEmail();
+  if (action === "open-booking") openBooking();
+  if (action === "close-booking") closeBooking();
   if (action === "copy") copyLink();
   if (action === "stay") keepSession();
 });
@@ -781,6 +870,11 @@ document.addEventListener("input", event => {
     state.draftAnswer.answer = event.target.value;
     if (state.draftAnswer.inputMethod !== "voice transcript") state.draftAnswer.inputMethod = "typed";
   }
+});
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Enter" && event.target.id === "summaryEmailInput") { event.preventDefault(); submitEmail(); }
+  if (event.key === "Escape") { if (state.emailOpen) closeEmail(); else if (state.bookingOpen) closeBooking(); }
 });
 
 document.addEventListener("keydown", event => {

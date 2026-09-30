@@ -728,10 +728,20 @@ h1, h2, h3, p { margin-top: 0; }
 .voice-modal__actions { display: flex; justify-content: space-between; gap: 16px; margin-top: 22px; }
 .voice-button--large { min-height: 76px; padding: 0 34px; font-size: 1.3rem; }
 .voice-button--large span { width: 16px; height: 16px; }
+.voice-modal__card input[type="email"] { width: 100%; padding: 16px 18px; border: 1px solid var(--line-strong); border-radius: 16px; color: var(--ink); background: #fff; font-size: 1.2rem; }
+.voice-modal__card input[type="email"]:focus { outline: 3px solid rgba(var(--accent-rgb), .18); border-color: var(--accent); }
+.voice-modal__card .voice-status[role="alert"]:empty { display: none; }
+.voice-modal__card .voice-status[role="alert"] { color: var(--red); }
+.voice-modal__card--email { width: min(560px, 92vw); }
+.voice-modal__card--booking { width: min(1040px, 96vw); padding: 40px 40px 34px; }
+.booking-frame { margin-top: 18px; border-radius: 20px; overflow: hidden; border: 1px solid var(--line-strong); }
+.booking-frame iframe { display: block; border: 0; }
 @media (max-width: 760px) {
   .voice-modal__card { padding: 34px 22px 24px; }
   .voice-modal__actions { flex-direction: column-reverse; }
   .voice-modal__actions button, .voice-button--large { width: 100%; }
+  .voice-modal__card--booking { padding: 26px 16px 20px; }
+  .booking-frame iframe { height: 70vh; }
 }
 
 /* TV / booth display: fixed 1920x1080 stage scaled to the window (see fitStage in experience.js). No scrolling. */
@@ -837,4 +847,6 @@ html.is-stage .booth-ticket__card, html.is-stage .idle-overlay__card, html.is-st
 html.is-stage .booth-ticket__card { width: 850px; }
 html.is-stage .idle-overlay__card { width: 720px; }
 html.is-stage .voice-modal__card { width: 900px; }
+html.is-stage .voice-modal__card--email { width: 560px; }
+html.is-stage .voice-modal__card--booking { width: 1040px; }
 html.is-stage .toast { font-size: calc(1.15rem * var(--stage-scale, 1)); bottom: calc(80px * var(--stage-scale, 1)); }

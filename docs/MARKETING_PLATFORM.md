@@ -24,6 +24,26 @@ Visitor -> https://mk.advancio.io/<app>/...
 | Supabase schema (booth) | `booth`, table `booth.sessions` |
 | Source repo | https://github.com/karimj-TGG/advancio-booth-demo (repo root is the `source` folder) |
 
+## Test environment
+
+Every app gets a `_test` twin that follows the same structure. Booth's twin was added 2026-09-23.
+
+| Item | Production | Test |
+| --- | --- | --- |
+| Public path | `mk.advancio.io/booth` | `mk.advancio.io/booth_test` |
+| Web App (same shared plan) | `advancio-booth` | `advancio-booth-test` |
+| `ROUTES` key in `mk-router.js` | `booth` | `booth_test` |
+| Supabase schema | `booth` | `booth_test` (never copy production rows into it) |
+| Build | `NEXT_PUBLIC_BASE_PATH=/booth` | `NEXT_PUBLIC_BASE_PATH=/booth_test` |
+| Azure app settings | `DB_SCHEMA` unset (defaults to `booth`), `APP_BASE_URL=https://mk.advancio.io/booth` | `DB_SCHEMA=booth_test`, `APP_ENV=test`, `APP_BASE_URL=https://mk.advancio.io/booth_test` |
+| Deploy | push to `main` (`deploy-azure.yml`) | push to `test` (`deploy-azure-test.yml`, secret `AZURE_WEBAPP_PUBLISH_PROFILE_TEST`, environment `test`) |
+
+- The schema is chosen only by the `DB_SCHEMA` app setting (`lib/supabase-server.ts`, validated against `^[a-z][a-z0-9_]*$`). The test app holds the same service-role key as production, which reaches every schema, so a wrong `DB_SCHEMA` would write test data into production. After any settings change, save a session through `/booth_test` and confirm it appears only in `booth_test`.
+- Browser storage keys carry the app path for every path except `/booth`, so test and production sessions do not collide on the shared origin.
+- Test data is disposable and may be cleared at any time.
+- To add another site (for example `itcbooth123`), repeat this checklist twice: once for `<app>` and once for `<app>_test`. Use lowercase schema names.
+- Resend is live (2026-09-30). The test app only sends to `TEST_EMAIL_ALLOWLIST` (comma-separated emails, app setting on `advancio-booth-test`); every other address is logged as `delivery_status = 'skipped'` in `follow_up_requests` and never reaches Resend. Production (`advancio-booth`) has no allowlist and sends normally.
+
 ## Rules
 
 1. **One shared plan.** New apps are new Web Apps on `asp-advancio-marketing`. Never create another plan, which would add a new monthly charge. If capacity runs out, scale the shared plan up. B1 has 1 core and 1.75 GB RAM shared by all apps.
