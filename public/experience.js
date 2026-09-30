@@ -864,12 +864,19 @@ function stopBadgeCamera() {
   state.badgeStream = null;
 }
 
+// Camera frames can arrive at 1920x1080+; a badge photo is legible at a fraction of that,
+// so downscale before upload to cut both transfer time and vision-model processing time.
+const BADGE_MAX_DIMENSION = 1600;
+
 async function captureBadgePhoto() {
   const video = document.getElementById("badgeVideo");
   if (!video) return;
+  const fullWidth = video.videoWidth || 1280;
+  const fullHeight = video.videoHeight || 720;
+  const scale = Math.min(1, BADGE_MAX_DIMENSION / Math.max(fullWidth, fullHeight));
   const canvas = document.createElement("canvas");
-  canvas.width = video.videoWidth || 1280;
-  canvas.height = video.videoHeight || 720;
+  canvas.width = Math.round(fullWidth * scale);
+  canvas.height = Math.round(fullHeight * scale);
   canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
   stopBadgeCamera();
   state.badgeStatus = "scanning";
@@ -877,7 +884,7 @@ async function captureBadgePhoto() {
   const preview = document.getElementById("badgeCanvasPreview");
   if (preview) { preview.width = canvas.width; preview.height = canvas.height; preview.getContext("2d").drawImage(canvas, 0, 0); }
   try {
-    const image = canvas.toDataURL("image/jpeg", 0.85);
+    const image = canvas.toDataURL("image/jpeg", 0.8);
     const response = await fetch(`${basePath}/api/scan-badge`, {
       method: "POST",
       headers: { "content-type": "application/json" },

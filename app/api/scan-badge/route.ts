@@ -51,7 +51,7 @@ export async function POST(request: Request) {
           },
         ],
         response_format: { type: "json_object" },
-        reasoning: { effort: "medium" },
+        reasoning: { effort: "low" },
         max_tokens: 1200,
       }),
     });
