@@ -177,6 +177,10 @@ The summary screen's "Email my journey" button opens a modal (`renderEmailModal`
 - Retention: follow-up requests are kept indefinitely, matching the session retention decision. No phone, name or company is collected — only what FR-10 needs for this one delivery.
 - Native share/SMS was removed from the summary screen at the owner's request (2026-09-30); only email delivery and "Copy personalized link" remain.
 
+### Analytics (added 2026-09-30)
+
+Zoho PageSense is loaded in `app/layout.tsx` (site-wide, all views). Skipped on local dev; production and test are distinguished by URL path in the PageSense dashboard rather than a second tracking code. Full detail, including the recording-privacy setting to apply in the Zoho dashboard, is in `docs/MARKETING_PLATFORM.md`.
+
 ## 5. Non-functional requirements
 
 ### Performance

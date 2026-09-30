@@ -116,6 +116,19 @@ az.cmd webapp deploy -g rg-advancio-marketing -n advancio-<app> --src-path <temp
 - A full journey saves and reloads through the API; delete any test rows you create.
 - Update this file's tables and `docs/PROJECT_HANDOFF.md`, then commit and push.
 
+## Analytics (Zoho PageSense)
+
+Zoho PageSense (heatmaps, session recording, analytics) is wired in `app/layout.tsx` as an inline `beforeInteractive` script, project "advancio" (tracking code `9b36b1f8c1164b779d29175ce0f91755`). Added 2026-09-30, owner-supplied snippet.
+
+- **Skips local dev entirely.** The whole snippet is wrapped in `if (!/^(localhost|127.0.0.1)$/.test(window.location.hostname))`, so `pnpm dev` never sends data to the account.
+- **Production vs test separation.** One PageSense project/tracking code covers every environment (each PageSense project has exactly one tracking code; Zoho's own cross-domain tracking feature is for stitching *related* sites into one session, not for splitting one project's data by environment). Production and test are told apart by the URL PageSense already records:
+  - Production: `https://mk.advancio.io/booth...`
+  - Test: `https://mk.advancio.io/booth_test...`
+  In the PageSense dashboard, build a segment/filter on Page URL (contains `/booth_test`) for test traffic, and its inverse (or "contains `/booth`, not `/booth_test`") for production. Do this once per report you care about (heatmaps, session recordings, funnels).
+- **For hard separation instead** (a second tracking code so test literally cannot appear in production numbers): create a second Website/project in the Zoho PageSense account for `booth_test`, and add its snippet to the app gated the same way this one is, keyed off `process.env.DB_SCHEMA` or the base path rather than hostname.
+- **Privacy:** PageSense session recording/heatmaps can capture on-screen text by default. Before relying on recordings, add `#summaryEmailInput` and `#otherAnswer` to PageSense's element-masking/exclusion settings in the dashboard (Settings → Recordings → Mask sensitive data) so a visitor's typed email or "Other" answer is never captured in a replay. This is a dashboard setting, not something set in this repo.
+- **New apps:** repeat this pattern — one shared PageSense project is fine; separate prod/test by URL segment, and add dashboard-side masking for any input collecting visitor text.
+
 ## Known limits and follow-ups
 
 - `mk.advancio.io/` (the root) returns 404. Add a landing page route if wanted.
