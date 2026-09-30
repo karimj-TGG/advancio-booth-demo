@@ -92,6 +92,7 @@ There are three questions and three product-story slides for each path. The clie
 - Use “Choose your bottleneck” as the primary instruction.
 - A visitor must be able to begin with one touch or click.
 - Selecting a path starts a fresh three-question journey for that area.
+- (Added 2026-09-30) Below the touch cue: a "Book a demo" button opening the same in-app Zoho Booking modal as the summary screen, and an "Advancio Spark Products" link to `labs.advancio.io` (opens in a new tab).
 
 ### FR-02 — Questions and answers
 
@@ -175,6 +176,7 @@ The summary screen's "Email my journey" button opens a modal (`renderEmailModal`
 - Table: `booth.follow_up_requests` (migration `20260930001945_create_follow_up_requests.sql`, created in both `booth` and `booth_test`). RLS on, service role only, same as `sessions`.
 - Env: `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (e.g. `"Advancio Spark <spark@advancio.io>"`), server-only, never sent to the browser. Both must be set in Azure app settings for production; see `.env.example`. The Resend account has both `advancio.io` and `thegeeksgroup.com` verified as sending domains.
 - Retention: follow-up requests are kept indefinitely, matching the session retention decision. No phone, name or company is collected — only what FR-10 needs for this one delivery.
+- The email itself (2026-09-30) has two CTAs: "Revisit your journey" (`personalizedUrl`) and "Book a demo" (`BOOKING_URL` constant in `route.ts`, currently `https://advancio.zohobookings.com/AdvancioSparkDemo`).
 - Native share/SMS was removed from the summary screen at the owner's request (2026-09-30); only email delivery and "Copy personalized link" remain.
 
 ### Analytics (added 2026-09-30)

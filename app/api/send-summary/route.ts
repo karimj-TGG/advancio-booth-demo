@@ -4,6 +4,7 @@ import { getSupabase } from "@/lib/supabase-server";
 export const dynamic = "force-dynamic";
 
 const CONSENT_VERSION = "summary-email-v1";
+const BOOKING_URL = "https://advancio.zohobookings.com/AdvancioSparkDemo";
 
 const bodySchema = z.object({
   sessionId: z.string().regex(/^[a-zA-Z0-9_-]{8,80}$/),
@@ -44,6 +45,7 @@ function renderEmail(summary: SummaryPayload, personalizedUrl: string) {
     `Why this path: ${summary.recommendationReason ?? ""}`,
     "",
     `Revisit your journey: ${personalizedUrl}`,
+    `Book a demo: ${BOOKING_URL}`,
   ].join("\n");
 
   const html = `
@@ -60,7 +62,10 @@ function renderEmail(summary: SummaryPayload, personalizedUrl: string) {
       </table>
       <p style="margin:0 0 4px;font-size:13px;color:#888">What you explored: ${escapeHtml(stages)}</p>
       <p style="margin:0 0 20px">${escapeHtml(summary.recommendationReason ?? "")}</p>
-      <a href="${personalizedUrl}" style="display:inline-block;padding:12px 20px;background:#d51f2b;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold">Revisit your journey</a>
+      <div>
+        <a href="${personalizedUrl}" style="display:inline-block;padding:12px 20px;background:#d51f2b;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;margin-right:10px">Revisit your journey</a>
+        <a href="${BOOKING_URL}" style="display:inline-block;padding:12px 20px;background:#fff;color:#111;text-decoration:none;border-radius:8px;font-weight:bold;border:1px solid #ccc">Book a demo</a>
+      </div>
     </div>`;
 
   return { text, html };

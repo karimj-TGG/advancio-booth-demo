@@ -233,6 +233,10 @@ function renderHome() {
         <h1 id="homeTitle">Choose your <span class="question-accent">bottleneck</span></h1>
         <p>Choose the area where work gets stuck. In a few taps, see what life could look like on the other side.</p>
         <div class="touch-cue"><span class="touch-cue__ring" aria-hidden="true"></span> Touch one area to begin</div>
+        <div class="home-cta-row">
+          <button class="secondary-button" type="button" data-action="open-booking">Book a demo</button>
+          <a class="home-copy__link" href="https://labs.advancio.io" target="_blank" rel="noopener">Advancio Spark Products <span aria-hidden="true">→</span></a>
+        </div>
       </div>
       <div class="path-grid" aria-label="Choose a business area">
         ${["distribution", "underwriting", "claims", "experience"].map(key => [key, paths[key]]).map(([key, item]) => `
