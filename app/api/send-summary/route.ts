@@ -9,6 +9,9 @@ const BOOKING_URL = "https://advancio.zohobookings.com/AdvancioSparkDemo";
 const bodySchema = z.object({
   sessionId: z.string().regex(/^[a-zA-Z0-9_-]{8,80}$/),
   email: z.string().email().max(254),
+  name: z.string().trim().min(1).max(120),
+  title: z.string().max(150).optional().default(""),
+  company: z.string().max(150).optional().default(""),
 });
 
 type SummaryPayload = {
@@ -86,7 +89,7 @@ export async function POST(request: Request) {
   if (!body.success) {
     return Response.json({ error: "A valid email is required." }, { status: 400 });
   }
-  const { sessionId, email } = body.data;
+  const { sessionId, email, name, title, company } = body.data;
 
   const supabase = getSupabase();
   const { data: session, error: fetchError } = await supabase
@@ -101,7 +104,14 @@ export async function POST(request: Request) {
 
   const { data: request_, error: insertError } = await supabase
     .from("follow_up_requests")
-    .insert({ session_id: sessionId, email, consent_text_version: CONSENT_VERSION })
+    .insert({
+      session_id: sessionId,
+      email,
+      name,
+      title: title || null,
+      company: company || null,
+      consent_text_version: CONSENT_VERSION,
+    })
     .select("id")
     .single();
 
@@ -132,11 +142,11 @@ export async function POST(request: Request) {
 
   const appBaseUrl = process.env.APP_BASE_URL || new URL(request.url).origin;
   const personalizedUrl = `${appBaseUrl}?session=${encodeURIComponent(sessionId)}`;
-  const summary = session.summary as SummaryPayload;
+  // The form's submitted name is the freshest signal (it's what the visitor just confirmed),
+  // so it takes priority over whatever was already stored on the session.
+  const summary: SummaryPayload = { ...(session.summary as SummaryPayload), visitorName: name };
   const { text, html } = renderEmail(summary, personalizedUrl);
-  const subject = summary.visitorName?.trim()
-    ? `${summary.visitorName.trim()}'s Advancio bottleneck journey`
-    : "Your Advancio bottleneck journey";
+  const subject = `${name}'s Advancio bottleneck journey`;
 
   try {
     const resendResponse = await fetch("https://api.resend.com/emails", {

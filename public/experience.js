@@ -167,9 +167,13 @@ const state = {
   emailError: "",
   bookingOpen: false,
   visitorName: null,
+  visitorTitle: null,
+  visitorCompany: null,
   badgeOpen: false,
   badgeStatus: "idle",
   badgeDraftName: "",
+  badgeDraftTitle: "",
+  badgeDraftCompany: "",
   badgeError: "",
   badgeStream: null
 };
@@ -442,6 +446,8 @@ function summaryPayload() {
     .filter(Boolean);
   return {
     visitorName: state.visitorName,
+    visitorTitle: state.visitorTitle,
+    visitorCompany: state.visitorCompany,
     area: data.title,
     recommendation: data.solution,
     recommendationReason: data.solutionLine,
@@ -609,6 +615,8 @@ function sessionPayload(reason) {
     answers: state.answers,
     viewedSlides: state.viewedSlides,
     visitorName: state.visitorName,
+    visitorTitle: state.visitorTitle,
+    visitorCompany: state.visitorCompany,
     summary: complete ? summaryPayload() : null,
     updatedAt: new Date().toISOString()
   };
@@ -666,8 +674,14 @@ function renderEmailModal() {
         <p class="voice-modal__note">Sent. Check your inbox for your personalized summary and link.</p>
         <div class="voice-modal__actions"><span></span><button class="primary-button" type="button" data-action="close-email">Done</button></div>
       ` : `
-        <p class="voice-modal__note">We'll send your personalized summary and a link back to it to this address. It's used only for this email, never for marketing.</p>
-        <label for="summaryEmailInput">Your email</label>
+        <p class="voice-modal__note">We'll send your personalized summary and a link back to it. Your name, title and company help us follow up appropriately — never used for anything else.${state.visitorName ? " Pulled from your badge scan; edit anything that's wrong." : ""}</p>
+        <label for="summaryNameInput">Full name</label>
+        <input id="summaryNameInput" type="text" maxlength="120" autocomplete="name" placeholder="Your name" value="${escapeHtml(state.visitorName || "")}" ${sending ? "disabled" : ""} />
+        <label for="summaryTitleInput">Title</label>
+        <input id="summaryTitleInput" type="text" maxlength="150" autocomplete="organization-title" placeholder="Your title" value="${escapeHtml(state.visitorTitle || "")}" ${sending ? "disabled" : ""} />
+        <label for="summaryCompanyInput">Company</label>
+        <input id="summaryCompanyInput" type="text" maxlength="150" autocomplete="organization" placeholder="Your company" value="${escapeHtml(state.visitorCompany || "")}" ${sending ? "disabled" : ""} />
+        <label for="summaryEmailInput">Email</label>
         <input id="summaryEmailInput" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com" value="" ${sending ? "disabled" : ""} />
         <div class="voice-status" role="alert">${state.emailError || ""}</div>
         <div class="voice-modal__actions">
@@ -676,7 +690,7 @@ function renderEmailModal() {
         </div>
       `}
     </div>`;
-  document.getElementById("summaryEmailInput")?.focus();
+  (document.getElementById("summaryNameInput") || document.getElementById("summaryEmailInput"))?.focus();
 }
 
 function openEmail() {
@@ -692,8 +706,15 @@ function closeEmail() {
 }
 
 async function submitEmail() {
-  const input = document.getElementById("summaryEmailInput");
-  const email = input?.value.trim() || "";
+  const name = document.getElementById("summaryNameInput")?.value.trim().slice(0, 120) || "";
+  const title = document.getElementById("summaryTitleInput")?.value.trim().slice(0, 150) || "";
+  const company = document.getElementById("summaryCompanyInput")?.value.trim().slice(0, 150) || "";
+  const email = document.getElementById("summaryEmailInput")?.value.trim() || "";
+  if (!name) {
+    state.emailError = "Enter your name.";
+    renderEmailModal();
+    return;
+  }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     state.emailError = "Enter a valid email address.";
     renderEmailModal();
@@ -702,11 +723,17 @@ async function submitEmail() {
   state.emailStatus = "sending";
   state.emailError = "";
   renderEmailModal();
+  // Whatever the visitor confirmed here is real data, entered now — keep it on the session
+  // regardless of whether the send itself succeeds (e.g. a bad email domain shouldn't lose it).
+  state.visitorName = name;
+  state.visitorTitle = title || null;
+  state.visitorCompany = company || null;
+  saveSession("contact");
   try {
     const response = await fetch(`${basePath}/api/send-summary`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ sessionId: state.sessionId, email })
+      body: JSON.stringify({ sessionId: state.sessionId, email, name, title, company })
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(body?.error || "Send failed");
@@ -761,7 +788,7 @@ function renderBadgeModal() {
       <span class="eyebrow">Personalize your journey</span>
       <h2 id="badgeTitle">Scan your conference badge</h2>
       ${s === "idle" ? `
-        <p class="voice-modal__note">Hold your badge up to the camera. The photo is read for text on this device only — it is never uploaded, sent to a server, or stored. Only the name you confirm next is saved with your session.</p>
+        <p class="voice-modal__note">Hold your badge up to the camera. Your badge photo is sent securely to an AI service to read your name, then immediately discarded — it is never saved or stored anywhere. Only the name you confirm next is saved with your session.</p>
         <div class="voice-modal__actions">
           <button class="secondary-button" type="button" data-action="badge-type-instead">Type my name instead</button>
           <button class="primary-button" type="button" data-action="badge-start-camera">Use camera</button>
@@ -837,17 +864,6 @@ function stopBadgeCamera() {
   state.badgeStream = null;
 }
 
-function guessNameFromOcr(text) {
-  const lines = text.split("\n").map(line => line.trim()).filter(Boolean);
-  const looksLikeNameWord = line => /^[A-Za-z][A-Za-z'.-]{1,25}$/.test(line);
-  const startIndex = lines.findIndex(looksLikeNameWord);
-  if (startIndex === -1) return "";
-  const picked = [lines[startIndex]];
-  const next = lines[startIndex + 1];
-  if (next && looksLikeNameWord(next) && next === next.toUpperCase()) picked.push(next);
-  return picked.join(" ").split(/\s+/).map(word => word[0].toUpperCase() + word.slice(1).toLowerCase()).join(" ");
-}
-
 async function captureBadgePhoto() {
   const video = document.getElementById("badgeVideo");
   if (!video) return;
@@ -861,13 +877,22 @@ async function captureBadgePhoto() {
   const preview = document.getElementById("badgeCanvasPreview");
   if (preview) { preview.width = canvas.width; preview.height = canvas.height; preview.getContext("2d").drawImage(canvas, 0, 0); }
   try {
-    if (!window.Tesseract) throw new Error("OCR unavailable");
-    const { data } = await window.Tesseract.recognize(canvas, "eng");
-    const guess = guessNameFromOcr(data.text || "");
+    const image = canvas.toDataURL("image/jpeg", 0.85);
+    const response = await fetch(`${basePath}/api/scan-badge`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ image })
+    });
+    const body = await response.json().catch(() => ({}));
+    const guess = typeof body.name === "string" ? body.name : "";
     state.badgeDraftName = guess;
-    state.badgeError = guess ? "" : "Could not read a name automatically. Type it below.";
+    state.badgeDraftTitle = typeof body.title === "string" ? body.title : "";
+    state.badgeDraftCompany = typeof body.company === "string" ? body.company : "";
+    state.badgeError = guess ? "" : (body.error || "Could not read a name automatically. Type it below.");
   } catch {
     state.badgeDraftName = "";
+    state.badgeDraftTitle = "";
+    state.badgeDraftCompany = "";
     state.badgeError = "Could not read your badge. Type your name below.";
   }
   state.badgeStatus = "edit";
@@ -878,6 +903,8 @@ function confirmBadgeName() {
   const input = document.getElementById("badgeNameInput");
   const name = (input?.value || "").trim().slice(0, 80);
   state.visitorName = name || null;
+  state.visitorTitle = state.badgeDraftTitle?.trim().slice(0, 100) || null;
+  state.visitorCompany = state.badgeDraftCompany?.trim().slice(0, 100) || null;
   state.badgeOpen = false;
   render();
   saveSession("badge");
@@ -885,6 +912,8 @@ function confirmBadgeName() {
 
 function clearBadge() {
   state.visitorName = null;
+  state.visitorTitle = null;
+  state.visitorCompany = null;
   render();
   saveSession("badge");
 }
@@ -913,7 +942,7 @@ function restart() {
   history.replaceState({}, "", url);
   sessionStorage.removeItem(sessionKey);
   sessionStorage.removeItem(pendingKey);
-  Object.assign(state, { view: "home", path: null, step: 0, answers: [], draftAnswer: null, voiceOpen: false, slide: 0, viewedSlides: [], shared: false, saveStatus: "idle", sessionId: getSessionId(), visitorName: null, badgeOpen: false, badgeStatus: "idle", badgeDraftName: "", badgeError: "" });
+  Object.assign(state, { view: "home", path: null, step: 0, answers: [], draftAnswer: null, voiceOpen: false, slide: 0, viewedSlides: [], shared: false, saveStatus: "idle", sessionId: getSessionId(), visitorName: null, visitorTitle: null, visitorCompany: null, badgeOpen: false, badgeStatus: "idle", badgeDraftName: "", badgeDraftTitle: "", badgeDraftCompany: "", badgeError: "" });
   idleOverlay.hidden = true;
   render();
 }
@@ -989,6 +1018,8 @@ async function hydrateFromUrl() {
       slide: Number.isInteger(session.slide) ? session.slide : 2,
       viewedSlides: Array.isArray(session.viewedSlides) ? session.viewedSlides : [],
       visitorName: typeof session.visitorName === "string" ? session.visitorName : null,
+      visitorTitle: typeof session.visitorTitle === "string" ? session.visitorTitle : null,
+      visitorCompany: typeof session.visitorCompany === "string" ? session.visitorCompany : null,
       shared: true,
       saveStatus: "saved"
     });
@@ -1047,7 +1078,7 @@ document.addEventListener("input", event => {
 });
 
 document.addEventListener("keydown", event => {
-  if (event.key === "Enter" && event.target.id === "summaryEmailInput") { event.preventDefault(); submitEmail(); }
+  if (event.key === "Enter" && ["summaryNameInput", "summaryTitleInput", "summaryCompanyInput", "summaryEmailInput"].includes(event.target.id)) { event.preventDefault(); submitEmail(); }
   if (event.key === "Enter" && event.target.id === "badgeNameInput") { event.preventDefault(); confirmBadgeName(); }
   if (event.key === "Escape") { if (state.emailOpen) closeEmail(); else if (state.bookingOpen) closeBooking(); else if (state.badgeOpen) closeBadgeScan(); }
 });

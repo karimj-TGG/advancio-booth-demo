@@ -29,7 +29,7 @@ The four paths are Distribution, Underwriting, Claims, and Customer Experience.
 - Generate a summary of the full experience: selected area, every question and answer, recommended solution, future state, and story frames viewed.
 - Keep personalized QR/share links working.
 - Preserve a useful fallback when voice input, native sharing, clipboard access, QR generation, camera access, or persistence is unavailable.
-- Badge-scan personalization (optional, added 2026-09-30): OCR runs on-device only (Tesseract.js). Never upload, transmit, or store the badge photo — only the visitor-confirmed name is saved.
+- Badge-scan personalization (optional, added 2026-09-30, switched to cloud vision 2026-09-30): the badge photo is sent to a vision model via OpenRouter (server-side only, `OPENROUTER_API_KEY` never reaches the browser) to read the name, title, and company, then discarded immediately — never written to disk, a database, or a log. Only the visitor-confirmed strings are saved. The "Email my journey" form collects and stores name/title/company/email the same way.
 - Do not add an admin interface unless explicitly requested.
 - Do not collect personal information silently. Any contact capture must be optional, clearly explained, and consent-based.
 

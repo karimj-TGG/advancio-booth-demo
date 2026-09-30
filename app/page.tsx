@@ -56,7 +56,6 @@ export default function Home() {
 
       <div className="toast" id="toast" role="status" aria-live="polite" />
       <Script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" strategy="afterInteractive" />
-      <Script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js" strategy="afterInteractive" />
       <Script src={`${basePath}/experience.js`} strategy="afterInteractive" />
     </>
   );
