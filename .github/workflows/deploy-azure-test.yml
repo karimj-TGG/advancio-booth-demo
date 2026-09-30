@@ -1,0 +1,40 @@
+name: Deploy to Azure (test)
+
+on:
+  push:
+    branches: [test]
+  workflow_dispatch:
+
+concurrency:
+  group: test-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Same build as production, served under /booth_test (mk.advancio.io/booth_test).
+      - run: pnpm build:node
+        env:
+          NEXT_PUBLIC_BASE_PATH: /booth_test
+
+      - run: pnpm package:azure
+
+      - uses: azure/webapps-deploy@v3
+        with:
+          app-name: advancio-booth-test
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_TEST }}
+          package: /tmp/advancio-azure.zip
+          clean: true

@@ -2,6 +2,7 @@
 // to its own Azure Web App. To add an app, add one line to ROUTES.
 const ROUTES = {
   booth: "advancio-booth.azurewebsites.net",
+  booth_test: "advancio-booth-test.azurewebsites.net",
 };
 
 export default {
